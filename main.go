@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	log.SetLevel(log.InfoLevel)
+	log.SetLevel(log.DebugLevel)
 
 	cwd, err := os.Getwd()
 	log.Debug(cwd)
@@ -55,29 +55,31 @@ func main() {
 	log.WithFields(log.Fields{
 		"length": len(room6),
 		"list": room6,
-	}).Info("ROOM 6: ")
+	}).Info("ROOM 6")
 }
 
 func logRow(row []string, record Record) {
-	// Display row.
-	// ... Display row length.
-	// ... Display all individual elements of the slice.
-	log.WithFields(log.Fields{
-		"row": row,
-	}).Debug("ROW")
-	log.WithFields(log.Fields{
-		"record": record,
-	}).Debug("RECORD")
+
 	log.WithFields(log.Fields{
 		"count": len(row),
 	}).Debug("# columns")
+
+	log.WithFields(log.Fields{
+		"row": row,
+	}).Debug("RAW ROW")
+
 	i := 0
-	fieldRow := make(log.Fields, len(row))
+	rowFields := make(log.Fields, len(row))
 	for value := range row {
-		fieldRow["f" + fmt.Sprintf("%02d", i)] = row[value]
+		rowFields["f" + fmt.Sprintf("%02d", i)] = row[value]
 		i++
 	}
-	log.WithFields(fieldRow).Debug("Row fields")
+	log.WithFields(rowFields).Debug("Row fields")
+
+	log.WithFields(log.Fields{
+		"record": record,
+	}).Debug("RECORD")
+
 }
 
 func check(e error) {
@@ -98,15 +100,22 @@ func makeRecord(row []string) Record {
 		parentFName = parentName
 		parentLName = ""
 	}
+
 	stuName := s.Split(row[0], ", ")
 	stuFName := stuName[1]
 	stuLName := stuName[0]
+
+	grade := row[7]
+	if grade == "0" {
+		grade = "K"
+	}
+
 	record := Record{
 		firstName:    parentFName,
 		lastName:     parentLName,
 		email:        row[14],
 		room:         row[2],
-		grade:        row[7],
+		grade:        grade,
 		stuFirstName: stuFName,
 		stuLastName:  stuLName,
 	}
