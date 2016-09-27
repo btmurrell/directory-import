@@ -31,7 +31,7 @@ func main() {
 		if err == io.EOF {
 			break
 		}
-		log.Debug("iteration #%v\n", i)
+		log.Debugf("iteration #%v", i)
 		if i == 0 {
 			i++
 			continue
@@ -66,16 +66,18 @@ func logRow(row []string, record Record) {
 		"row": row,
 	}).Debug("ROW")
 	log.WithFields(log.Fields{
-		"record": fmt.Sprintf("%+v", record),
-	}).Info("RECORD")
-	log.Debugf("# columns: %v\n", len(row))
+		"record": record,
+	}).Debug("RECORD")
+	log.WithFields(log.Fields{
+		"count": len(row),
+	}).Debug("# columns")
 	i := 0
 	fieldRow := make(log.Fields, len(row))
 	for value := range row {
-		fieldRow["f"+fmt.Sprintf("%02d", i)] = row[value]
+		fieldRow["f" + fmt.Sprintf("%02d", i)] = row[value]
 		i++
 	}
-	log.WithFields(fieldRow).Info("Row fields")
+	log.WithFields(fieldRow).Debug("Row fields")
 }
 
 func check(e error) {
@@ -91,7 +93,7 @@ func makeRecord(row []string) Record {
 	var parentLName string
 	if nameSplitIdx >= 0 {
 		parentFName = parentName[0:nameSplitIdx]
-		parentLName = parentName[nameSplitIdx:len(parentName)]
+		parentLName = parentName[nameSplitIdx+1:]
 	} else {
 		parentFName = parentName
 		parentLName = ""
@@ -119,6 +121,10 @@ type Record struct {
 	grade        string
 	stuFirstName string
 	stuLastName  string
+}
+
+func (r Record) String() string {
+	return fmt.Sprintf("%#v", r)
 }
 
 type RoomMap map[string][]Record
