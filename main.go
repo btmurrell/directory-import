@@ -7,19 +7,19 @@ import (
 	"os"
 	s "strings"
 	log "github.com/Sirupsen/logrus"
+	"fmt"
 )
 
 func main() {
 	log.SetLevel(log.InfoLevel)
-	// Load a TXT file.
+
 	cwd, err := os.Getwd()
 	log.Debug(cwd)
-	//dir := "src/github.com/btmurrell/directory-import"
+
 	dir := "."
 	file, err := os.Open(dir + "/inputData/2016-17.csv")
 	check(err)
 
-	// Create a new reader.
 	reader := csv.NewReader(bufio.NewReader(file))
 
 	writer := csv.NewWriter(os.Stdout)
@@ -28,7 +28,6 @@ func main() {
 
 	for {
 		row, err := reader.Read()
-		// Stop at EOF.
 		if err == io.EOF {
 			break
 		}
@@ -40,20 +39,7 @@ func main() {
 
 		record := makeRecord(row)
 		roomMap.Add(record.room, record)
-
-		// Display row.
-		// ... Display row length.
-		// ... Display all individual elements of the slice.
-		log.WithFields(log.Fields{
-			"row": row,
-		}).Debug("ROW")
-		log.WithFields(log.Fields{
-			"record": record,
-		}).Info("RECORD")
-		log.Debugf("# columns: %v\n", len(row))
-		for value := range row {
-			log.Debugf("  %v\n", row[value])
-		}
+		logRow(row, record)
 		i++
 	}
 
@@ -70,6 +56,26 @@ func main() {
 		"length": len(room6),
 		"list": room6,
 	}).Info("ROOM 6: ")
+}
+
+func logRow(row []string, record Record) {
+	// Display row.
+	// ... Display row length.
+	// ... Display all individual elements of the slice.
+	log.WithFields(log.Fields{
+		"row": row,
+	}).Debug("ROW")
+	log.WithFields(log.Fields{
+		"record": fmt.Sprintf("%+v", record),
+	}).Info("RECORD")
+	log.Debugf("# columns: %v\n", len(row))
+	i := 0
+	fieldRow := make(log.Fields, len(row))
+	for value := range row {
+		fieldRow["f"+fmt.Sprintf("%02d", i)] = row[value]
+		i++
+	}
+	log.WithFields(fieldRow).Info("Row fields")
 }
 
 func check(e error) {
