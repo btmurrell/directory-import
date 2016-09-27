@@ -3,28 +3,19 @@ package main
 import (
 	"bufio"
 	"encoding/csv"
+	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"io"
 	"os"
 	s "strings"
-	log "github.com/Sirupsen/logrus"
-	"fmt"
 )
 
 var rowFieldIndices = new(RowFieldIndices)
 var noEmailCount = 0
 
 func main() {
-	rowFieldIndices.studentName = 0
-	rowFieldIndices.parentName = 10
-	rowFieldIndices.parentEmail = 14
-	rowFieldIndices.parentEmailAlt = 15
-	rowFieldIndices.room = 2
-	rowFieldIndices.grade = 7
 
-	log.SetLevel(log.InfoLevel)
-
-	cwd, err := os.Getwd()
-	log.Debug(cwd)
+	setup()
 
 	dir := "."
 	file, err := os.Open(dir + "/inputData/2016-17.csv")
@@ -32,10 +23,35 @@ func main() {
 
 	reader := csv.NewReader(bufio.NewReader(file))
 
-	writer := csv.NewWriter(os.Stdout)
+	roomMap := makeRoomMap(reader)
+
+	log.WithFields(log.Fields{
+		"count": noEmailCount,
+	}).Info("Rows with no email")
+
+	writeRoomCSVFiles(roomMap)
+
+	room6, _ := roomMap.Peek("6")
+	log.WithFields(log.Fields{
+		"length": len(room6),
+		"list":   room6,
+	}).Info("ROOM 6")
+}
+
+func setup() {
+	rowFieldIndices.studentName = 0
+	rowFieldIndices.parentName = 10
+	rowFieldIndices.parentEmail = 14
+	rowFieldIndices.parentEmailAlt = 15
+	rowFieldIndices.room = 2
+	rowFieldIndices.grade = 7
+
+	log.SetLevel(log.DebugLevel)
+}
+
+func makeRoomMap(reader *csv.Reader) RoomMap {
 	i := 0
 	roomMap := make(RoomMap)
-
 
 	for {
 		row, err := reader.Read()
@@ -64,9 +80,11 @@ func main() {
 		i++
 	}
 
-	log.WithFields(log.Fields{
-		"count": noEmailCount,
-	}).Info("Rows with no email")
+	return roomMap
+}
+
+func writeRoomCSVFiles(roomMap RoomMap) {
+	writer := csv.NewWriter(os.Stdout)
 
 	// if err := writer.Write(record); err != nil {
 	// 	log.Fatalln("error writing record to csv:", err)
@@ -76,11 +94,6 @@ func main() {
 	if err := writer.Error(); err != nil {
 		log.Fatal(err)
 	}
-	room6, _ := roomMap.Peek("6")
-	log.WithFields(log.Fields{
-		"length": len(room6),
-		"list": room6,
-	}).Info("ROOM 6")
 }
 
 func logRow(row []string, record Record) {
@@ -96,7 +109,7 @@ func logRow(row []string, record Record) {
 	i := 0
 	rowFields := make(log.Fields, len(row))
 	for value := range row {
-		rowFields["f" + fmt.Sprintf("%02d", i)] = row[value]
+		rowFields["f"+fmt.Sprintf("%02d", i)] = row[value]
 		i++
 	}
 	log.WithFields(rowFields).Debug("Row fields")
@@ -180,12 +193,12 @@ type Record struct {
 }
 
 type RowFieldIndices struct {
-	parentName int
-	studentName int
-	parentEmail int
+	parentName     int
+	studentName    int
+	parentEmail    int
 	parentEmailAlt int
-	grade int
-	room int
+	grade          int
+	room           int
 }
 
 func (r Record) String() string {
@@ -201,12 +214,10 @@ func (r RoomMap) Add(key string, value Record) {
 	}
 	r[key] = append(r[key], value)
 }
-
 func (r RoomMap) Peek(key string) ([]Record, bool) {
 	slice, ok := r[key]
 	if !ok || len(slice) == 0 {
-		return make([]Record,0), false
+		return make([]Record, 0), false
 	}
 	return r[key], true
 }
-
