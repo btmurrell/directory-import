@@ -3,18 +3,19 @@ package main
 import (
 	"bufio"
 	"encoding/csv"
-	"fmt"
 	"io"
-	"log"
 	"os"
 	s "strings"
+	log "github.com/Sirupsen/logrus"
 )
 
 func main() {
+	log.SetLevel(log.InfoLevel)
 	// Load a TXT file.
 	cwd, err := os.Getwd()
-	fmt.Println(cwd)
-	dir := "src/github.com/btmurrell/directory-import"
+	log.Debug(cwd)
+	//dir := "src/github.com/btmurrell/directory-import"
+	dir := "."
 	file, err := os.Open(dir + "/inputData/2016-17.csv")
 	check(err)
 
@@ -23,48 +24,61 @@ func main() {
 
 	writer := csv.NewWriter(os.Stdout)
 	i := 0
+	roomMap := make(RoomMap)
+
 	for {
 		row, err := reader.Read()
 		// Stop at EOF.
 		if err == io.EOF {
 			break
 		}
-		fmt.Printf("iteration #%v\n", i)
+		log.Debug("iteration #%v\n", i)
 		if i == 0 {
 			i++
 			continue
 		}
 
 		record := makeRecord(row)
-
-		// if err := writer.Write(record); err != nil {
-		// 	log.Fatalln("error writing record to csv:", err)
-		// }
+		roomMap.Add(record.room, record)
 
 		// Display row.
 		// ... Display row length.
 		// ... Display all individual elements of the slice.
-		fmt.Println(row)
-		fmt.Println(record)
-		fmt.Printf("# columns: %v\n", len(row))
+		log.WithFields(log.Fields{
+			"row": row,
+		}).Debug("ROW")
+		log.WithFields(log.Fields{
+			"record": record,
+		}).Info("RECORD")
+		log.Debugf("# columns: %v\n", len(row))
 		for value := range row {
-			fmt.Printf("  %v\n", row[value])
+			log.Debugf("  %v\n", row[value])
 		}
 		i++
 	}
+
+	// if err := writer.Write(record); err != nil {
+	// 	log.Fatalln("error writing record to csv:", err)
+	// }
+
 	writer.Flush()
 	if err := writer.Error(); err != nil {
 		log.Fatal(err)
 	}
+	room6, _ := roomMap.Peek("6")
+	log.WithFields(log.Fields{
+		"length": len(room6),
+		"list": room6,
+	}).Info("ROOM 6: ")
 }
 
 func check(e error) {
 	if e != nil {
-		panic(e)
+		log.Fatal(e)
 	}
 }
 
-func makeRecord(row []string) *Record {
+func makeRecord(row []string) Record {
 	parentName := row[10]
 	nameSplitIdx := s.Index(parentName, " ")
 	var parentFName string
@@ -79,24 +93,43 @@ func makeRecord(row []string) *Record {
 	stuName := s.Split(row[0], ", ")
 	stuFName := stuName[1]
 	stuLName := stuName[0]
-	record := &Record{
-		FirstName:    parentFName,
-		LastName:     parentLName,
-		Email:        row[14],
-		Room:         row[2],
-		Grade:        row[7],
-		StuFirstName: stuFName,
-		StuLastName:  stuLName,
+	record := Record{
+		firstName:    parentFName,
+		lastName:     parentLName,
+		email:        row[14],
+		room:         row[2],
+		grade:        row[7],
+		stuFirstName: stuFName,
+		stuLastName:  stuLName,
 	}
 	return record
 }
 
 type Record struct {
-	FirstName    string
-	LastName     string
-	Email        string
-	Room         string
-	Grade        string
-	StuFirstName string
-	StuLastName  string
+	firstName    string
+	lastName     string
+	email        string
+	room         string
+	grade        string
+	stuFirstName string
+	stuLastName  string
 }
+
+type RoomMap map[string][]Record
+
+func (r RoomMap) Add(key string, value Record) {
+	_, ok := r[key]
+	if !ok {
+		r[key] = make([]Record, 0, 20)
+	}
+	r[key] = append(r[key], value)
+}
+
+func (r RoomMap) Peek(key string) ([]Record, bool) {
+	slice, ok := r[key]
+	if !ok || len(slice) == 0 {
+		return make([]Record,0), false
+	}
+	return r[key], true
+}
+
