@@ -10,8 +10,18 @@ import (
 	"fmt"
 )
 
+var rowFieldIndices = new(RowFieldIndices)
+var noEmailCount = 0
+
 func main() {
-	log.SetLevel(log.DebugLevel)
+	rowFieldIndices.studentName = 0
+	rowFieldIndices.parentName = 10
+	rowFieldIndices.parentEmail = 14
+	rowFieldIndices.parentEmailAlt = 15
+	rowFieldIndices.room = 2
+	rowFieldIndices.grade = 7
+
+	log.SetLevel(log.InfoLevel)
 
 	cwd, err := os.Getwd()
 	log.Debug(cwd)
@@ -26,6 +36,7 @@ func main() {
 	i := 0
 	roomMap := make(RoomMap)
 
+
 	for {
 		row, err := reader.Read()
 		if err == io.EOF {
@@ -38,10 +49,24 @@ func main() {
 		}
 
 		record := makeRecord(row)
-		roomMap.Add(record.room, record)
 		logRow(row, record)
+
+		if record.email == "" {
+			noEmailCount++
+			log.WithFields(log.Fields{
+				"row": row,
+			}).Error("DISCARDING ROW: no email found")
+		} else {
+			// only add records which have email addresses
+			roomMap.Add(record.room, record)
+		}
+
 		i++
 	}
+
+	log.WithFields(log.Fields{
+		"count": noEmailCount,
+	}).Info("Rows with no email")
 
 	// if err := writer.Write(record); err != nil {
 	// 	log.Fatalln("error writing record to csv:", err)
@@ -89,7 +114,13 @@ func check(e error) {
 }
 
 func makeRecord(row []string) Record {
-	parentName := row[10]
+
+	// parentName:
+	// This implementation is based on value containing one string of "Firstname Lastname"
+	// this splits on the space, takes first part as parentFName and all the rest as parentLName
+	// * in case the value has no space, parentFName gets it all, parentLName is blank
+	// * in case the value multiple spaces, only the first word goes into parentFName, rest to parentLName
+	parentName := row[rowFieldIndices.parentName]
 	nameSplitIdx := s.Index(parentName, " ")
 	var parentFName string
 	var parentLName string
@@ -101,24 +132,40 @@ func makeRecord(row []string) Record {
 		parentLName = ""
 	}
 
-	stuName := s.Split(row[0], ", ")
+	// stuName
+	// This implementation is based on value containing one string "Lastname, Firstname"
+	// this splits on ", ", breaking out the single field into stuFName and stuLName fields
+	stuName := s.Split(row[rowFieldIndices.studentName], ", ")
 	stuFName := stuName[1]
 	stuLName := stuName[0]
 
-	grade := row[7]
+	// grade == 0 is Kindergarten; re-assign where appropriate
+	grade := row[rowFieldIndices.grade]
 	if grade == "0" {
 		grade = "K"
+	}
+
+	// if no email, check for alternate
+	email := row[rowFieldIndices.parentEmail]
+	if email == "" {
+		if row[rowFieldIndices.parentEmailAlt] != "" {
+			email = row[rowFieldIndices.parentEmailAlt]
+			log.WithFields(log.Fields{
+				"row": row,
+			}).Debug("no primary email found; found alt email")
+		}
 	}
 
 	record := Record{
 		firstName:    parentFName,
 		lastName:     parentLName,
-		email:        row[14],
-		room:         row[2],
+		email:        email,
+		room:         row[rowFieldIndices.room],
 		grade:        grade,
 		stuFirstName: stuFName,
 		stuLastName:  stuLName,
 	}
+
 	return record
 }
 
@@ -130,6 +177,15 @@ type Record struct {
 	grade        string
 	stuFirstName string
 	stuLastName  string
+}
+
+type RowFieldIndices struct {
+	parentName int
+	studentName int
+	parentEmail int
+	parentEmailAlt int
+	grade int
+	room int
 }
 
 func (r Record) String() string {
