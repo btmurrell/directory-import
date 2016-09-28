@@ -64,17 +64,17 @@ func makeRoomMap(reader *csv.Reader) RoomMap {
 			continue
 		}
 
-		record := makeRecord(row)
-		logRow(row, record)
+		parentRow := makeParentRow(row)
+		logRow(row, parentRow)
 
-		if record.email == "" {
+		if parentRow[2] == "" {
 			noEmailCount++
 			log.WithFields(log.Fields{
 				"row": row,
 			}).Error("DISCARDING ROW: no email found")
 		} else {
-			// only add records which have email addresses
-			roomMap.Add(record.room, record)
+			// only add parentRows which have email addresses
+			roomMap.Add(parentRow[3], parentRow)
 		}
 
 		i++
@@ -84,19 +84,30 @@ func makeRoomMap(reader *csv.Reader) RoomMap {
 }
 
 func writeRoomCSVFiles(roomMap RoomMap) {
-	writer := csv.NewWriter(os.Stdout)
 
-	// if err := writer.Write(record); err != nil {
-	// 	log.Fatalln("error writing record to csv:", err)
-	// }
+	for room := range roomMap {
 
-	writer.Flush()
-	if err := writer.Error(); err != nil {
-		log.Fatal(err)
+		parents, _ := roomMap.Peek(room)
+		grade := parents[0][4]
+
+		dir := "./output/"
+		fileName := grade + "-rm" + room + ".csv"
+		file, err := os.Create(dir + fileName)
+		check(err)
+
+		writer := csv.NewWriter(bufio.NewWriter(file))
+		if err := writer.WriteAll(parents); err != nil {
+			log.Fatalln("error writing parents to csv:", err)
+		}
+		writer.Flush()
+		if err := writer.Error(); err != nil {
+			log.Fatal(err)
+		}
 	}
+
 }
 
-func logRow(row []string, record Record) {
+func logRow(row []string, parentRow []string) {
 
 	log.WithFields(log.Fields{
 		"count": len(row),
@@ -115,9 +126,8 @@ func logRow(row []string, record Record) {
 	log.WithFields(rowFields).Debug("Row fields")
 
 	log.WithFields(log.Fields{
-		"record": record,
-	}).Debug("RECORD")
-
+		"parentRow": parentRow,
+	}).Debug("PARENT ROW")
 }
 
 func check(e error) {
@@ -126,7 +136,7 @@ func check(e error) {
 	}
 }
 
-func makeRecord(row []string) Record {
+func makeParentRow(row []string) []string {
 
 	// parentName:
 	// This implementation is based on value containing one string of "Firstname Lastname"
@@ -169,27 +179,16 @@ func makeRecord(row []string) Record {
 		}
 	}
 
-	record := Record{
-		firstName:    parentFName,
-		lastName:     parentLName,
-		email:        email,
-		room:         row[rowFieldIndices.room],
-		grade:        grade,
-		stuFirstName: stuFName,
-		stuLastName:  stuLName,
-	}
+	var result = make([]string, 7)
+	result[0] = parentFName
+	result[1] = parentLName
+	result[2] = email
+	result[3] = row[rowFieldIndices.room]
+	result[4] = grade
+	result[5] = stuFName
+	result[6] = stuLName
 
-	return record
-}
-
-type Record struct {
-	firstName    string
-	lastName     string
-	email        string
-	room         string
-	grade        string
-	stuFirstName string
-	stuLastName  string
+	return result
 }
 
 type RowFieldIndices struct {
@@ -201,23 +200,19 @@ type RowFieldIndices struct {
 	room           int
 }
 
-func (r Record) String() string {
-	return fmt.Sprintf("%#v", r)
-}
+type RoomMap map[string][][]string
 
-type RoomMap map[string][]Record
-
-func (r RoomMap) Add(key string, value Record) {
+func (r RoomMap) Add(key string, value []string) {
 	_, ok := r[key]
 	if !ok {
-		r[key] = make([]Record, 0, 20)
+		r[key] = make([][]string, 0, 20)
 	}
 	r[key] = append(r[key], value)
 }
-func (r RoomMap) Peek(key string) ([]Record, bool) {
+func (r RoomMap) Peek(key string) ([][]string, bool) {
 	slice, ok := r[key]
 	if !ok || len(slice) == 0 {
-		return make([]Record, 0), false
+		return make([][]string, 0), false
 	}
 	return r[key], true
 }
