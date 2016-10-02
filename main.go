@@ -31,11 +31,11 @@ func main() {
 
 	writeRoomCSVFiles(roomMap)
 
-	room6, _ := roomMap.Peek("6")
+	room1, _ := roomMap.Peek("K-1")
 	log.WithFields(log.Fields{
-		"length": len(room6),
-		"list":   room6,
-	}).Info("ROOM 6")
+		"length": len(room1),
+		"list":   room1,
+	}).Info("ROOM 1")
 }
 
 func setup() {
@@ -46,7 +46,7 @@ func setup() {
 	rowFieldIndices.room = 2
 	rowFieldIndices.grade = 7
 
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.InfoLevel)
 }
 
 func makeRoomMap(reader *csv.Reader) RoomMap {
@@ -74,7 +74,11 @@ func makeRoomMap(reader *csv.Reader) RoomMap {
 			}).Error("DISCARDING ROW: no email found")
 		} else {
 			// only add parentRows which have email addresses
-			roomMap.Add(parentRow[3], parentRow)
+			// key is "grade-room"; this accounts for combo rooms,
+			// for example, there's usually a combo grade 4 + grade 5
+			// class in the same room.  This will allow creating
+			// separate csv files for same room, for each of the grades
+			roomMap.Add(parentRow[4]+"-"+parentRow[3], parentRow)
 		}
 
 		i++
@@ -84,20 +88,25 @@ func makeRoomMap(reader *csv.Reader) RoomMap {
 }
 
 func writeRoomCSVFiles(roomMap RoomMap) {
+	header := []string{"FirstName", "LastName", "email", "room", "grade", "StuFn", "StuLn"}
+	dir := "./output/"
+	for gradeRoom := range roomMap {
 
-	for room := range roomMap {
+		parents, _ := roomMap.Peek(gradeRoom)
+		gradeRoomSplitIdx := s.Index(gradeRoom, "-")
+		// key is grade-room, split these out
+		grade := gradeRoom[0:gradeRoomSplitIdx]
+		room := gradeRoom[gradeRoomSplitIdx+1:]
 
-		parents, _ := roomMap.Peek(room)
-		grade := parents[0][4]
-
-		dir := "./output/"
-		fileName := grade + "-rm" + room + ".csv"
+		fileName := "grade" + grade + "-room" + room + ".csv"
 		file, err := os.Create(dir + fileName)
 		check(err)
-
 		writer := csv.NewWriter(bufio.NewWriter(file))
+		if err := writer.Write(header); err != nil {
+			log.Fatalf("error writing header to csv file '%v': %v\n", fileName, err)
+		}
 		if err := writer.WriteAll(parents); err != nil {
-			log.Fatalln("error writing parents to csv:", err)
+			log.Fatalf("error writing parents to csv file '%v': %v\n", fileName, err)
 		}
 		writer.Flush()
 		if err := writer.Error(); err != nil {
@@ -120,6 +129,7 @@ func logRow(row []string, parentRow []string) {
 	i := 0
 	rowFields := make(log.Fields, len(row))
 	for value := range row {
+		// this simply makes a field label with 2-digit, 0-padded name
 		rowFields["f"+fmt.Sprintf("%02d", i)] = row[value]
 		i++
 	}
