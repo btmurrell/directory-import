@@ -12,16 +12,14 @@ import (
 
 var rowFieldIndices = new(RowFieldIndices)
 var noEmailCount = 0
+var csvRecordsCount = 0
+var processedRecordsCount = 0
 
 func main() {
 
 	setup()
 
 	roomMap := makeRoomMap()
-
-	log.WithFields(log.Fields{
-		"count": noEmailCount,
-	}).Info("Rows with no email")
 
 	writeRoomCSVFiles(roomMap)
 
@@ -45,22 +43,17 @@ func makeRoomMap() RoomMap {
 
 	reader := csv.NewReader(bufio.NewReader(file))
 
-	csvRecordsCount := 0
-	processedRecordsCount := 0
-
 	roomMap := make(RoomMap)
 
 	for {
 		row, errRead := reader.Read()
 		if errRead == io.EOF {
-			log.WithFields(log.Fields{
-				"csvRecords":       csvRecordsCount,
-				"processedRecords": processedRecordsCount,
-			}).Infof("Finished successfully processing %v out of %v rows.\n", processedRecordsCount, csvRecordsCount)
+			logFin()
 			break
 		}
 		log.Debugf("iteration #%v", csvRecordsCount)
 		if csvRecordsCount == 0 {
+			// header
 			csvRecordsCount++
 			continue
 		}
@@ -88,9 +81,8 @@ func makeRoomMap() RoomMap {
 func writeRoomCSVFiles(roomMap RoomMap) {
 	header := []string{"FirstName", "LastName", "email", "room", "grade", "StuFn", "StuLn"}
 	dir := "./output/"
-	for gradeRoom := range roomMap {
+	for gradeRoom, parents := range roomMap {
 
-		parents, _ := roomMap.Peek(gradeRoom)
 		gradeRoomSplitIdx := s.Index(gradeRoom, "-")
 		// key is grade-room, split these out
 		grade := gradeRoom[0:gradeRoomSplitIdx]
@@ -138,6 +130,16 @@ func logRow(row []string, parentRow []string) {
 	}).Debug("PARENT ROW")
 }
 
+func logFin() {
+	log.WithFields(log.Fields{
+		"csvRecords":       csvRecordsCount,
+		"processedRecords": processedRecordsCount,
+	}).Infof("Finished successfully processing %v out of %v rows.\n", processedRecordsCount, csvRecordsCount)
+	log.WithFields(log.Fields{
+		"count": noEmailCount,
+	}).Info("Rows with no email")
+}
+
 func check(e error) {
 	if e != nil {
 		log.Fatal(e)
@@ -158,14 +160,12 @@ func discardRow(err error, row []string) {
 func makeParentRow(row []string) ([]string, error) {
 
 	email, emailErr := resolveEmail(row)
-	if rie, ok := emailErr.(*recordImportError); ok {
-		fmt.Println(rie.cause)
-		fmt.Println(rie.msg)
+	if _, ok := emailErr.(*recordImportError); ok {
 		return nil, emailErr
 	}
 
-	parentFName, parentLName := resolveParentName(row)
-	stuFName, stuLName := resolveStudentName(row)
+	parent := resolveParentName(row)
+	student := resolveStudentName(row)
 	room := row[rowFieldIndices.room]
 	// grade == 0 is Kindergarten; re-assign where appropriate
 	grade := row[rowFieldIndices.grade]
@@ -174,25 +174,25 @@ func makeParentRow(row []string) ([]string, error) {
 	}
 
 	var result = make([]string, 7)
-	result[0] = parentFName
-	result[1] = parentLName
+	result[0] = parent.first
+	result[1] = parent.last
 	result[2] = email
 	result[3] = room
 	result[4] = grade
-	result[5] = stuFName
-	result[6] = stuLName
+	result[5] = student.first
+	result[6] = student.last
 
 	return result, nil
 }
 
-func resolveParentName(row []string) (string, string) {
+func resolveParentName(row []string) (Name) {
 	// parentName:
 	// This implementation is based on value containing one string of "Firstname Lastname"
 	// this splits on the space, takes first part as parentFName and all the rest as parentLName
 	// * in case the value has no space, parentFName gets it all, parentLName is blank
 	// * in case the value multiple spaces, only the first word goes into parentFName, rest to parentLName
 	parentName := row[rowFieldIndices.parentName]
-	stuFName, stuLName := resolveStudentName(row)
+	student := resolveStudentName(row)
 	var parentFName string
 	var parentLName string
 	if len(parentName) > 0 {
@@ -204,26 +204,36 @@ func resolveParentName(row []string) (string, string) {
 		} else {
 			// no split, use the single value of
 			parentFName = parentName
-			parentLName = "[parent unspecified] student: " + stuLName
+			parentLName = "[parent unspecified] student: " + student.last
+			log.WithFields(log.Fields{
+				"first name": parentFName,
+				"last name": parentLName,
+				"row": row,
+			}).Warn("could not identify multi-part parent name, using student's last name instead")
 		}
 
 	} else {
 		// parentName field empty. use student's name as a fallback
-		parentFName = "[parent unspecified] student: " + stuFName
-		parentLName = "[parent unspecified] student: " + stuLName
+		parentFName = "[parent unspecified] student: " + student.first
+		parentLName = "[parent unspecified] student: " + student.last
+		log.WithFields(log.Fields{
+			"first name": parentFName,
+			"last name": parentLName,
+			"row": row,
+		}).Warn("No parent name provided, using student's instead")
 	}
 
-	return parentFName, parentLName
+	return Name{parentFName, parentLName}
 }
 
-func resolveStudentName(row []string) (string, string) {
+func resolveStudentName(row []string) (Name) {
 	// stuName
 	// This implementation is based on value containing one string "Lastname, Firstname"
 	// this splits on ", ", breaking out the single field into stuFName and stuLName fields
 	stuName := s.Split(row[rowFieldIndices.studentName], ", ")
 	stuFName := stuName[1]
 	stuLName := stuName[0]
-	return stuFName, stuLName
+	return Name{stuFName, stuLName}
 }
 
 func resolveEmail(row []string) (string, error) {
@@ -235,9 +245,8 @@ func resolveEmail(row []string) (string, error) {
 			log.WithFields(log.Fields{
 				"altEmail": email,
 				"row":      row,
-			}).Debug("no primary email found; using alt email")
+			}).Warn("no primary email found; using alt email")
 		}
-
 	}
 	if len(email) == 0 {
 		return "", &recordImportError{"NO_EMAIL", "No email address found"}
@@ -254,8 +263,12 @@ type RowFieldIndices struct {
 	room           int
 }
 
-type RoomMap map[string][][]string
+type Name struct {
+	first string
+	last string
+}
 
+type RoomMap map[string][][]string
 func (r RoomMap) Add(key string, value []string) {
 	_, ok := r[key]
 	if !ok {
@@ -275,7 +288,6 @@ type recordImportError struct {
 	cause string
 	msg   string
 }
-
 func (e *recordImportError) Error() string {
 	return fmt.Sprintf("%d - %s", e.cause, e.msg)
 }
