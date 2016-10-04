@@ -14,18 +14,26 @@ var rowFieldIndices = new(RowFieldIndices)
 var noEmailCount = 0
 var csvRecordsCount = 0
 var processedRecordsCount = 0
+var outputDir = "csv-output"
 
 func main() {
 
 	setup()
 
-	roomMap := makeRoomMap()
+	inputFileName := os.Args[1]
+
+	roomMap := makeRoomMap(&inputFileName)
 
 	writeRoomCSVFiles(roomMap)
 
+	fmt.Printf("\nFinished successfully processing %v out of %v rows.\n\n", processedRecordsCount, csvRecordsCount)
+	fmt.Println("\nYour file has been converted to multiple csv files for import into my-pta.")
+	fmt.Printf("You will find all of the files in a folder named '%v' in this directory.\n\n", outputDir)
 }
 
 func setup() {
+	log.SetLevel(log.PanicLevel)
+
 	rowFieldIndices.studentName = 0
 	rowFieldIndices.parentName = 10
 	rowFieldIndices.parentEmail = 14
@@ -33,12 +41,12 @@ func setup() {
 	rowFieldIndices.room = 2
 	rowFieldIndices.grade = 7
 
-	log.SetLevel(log.InfoLevel)
+	os.Mkdir(outputDir, 0755)
 }
 
-func makeRoomMap() RoomMap {
-	dir := "."
-	file, err := os.Open(dir + "/inputData/2016-17.csv")
+func makeRoomMap(inputFileName *string) RoomMap {
+	dir := "./"
+	file, err := os.Open(dir + *inputFileName)
 	check(err)
 
 	reader := csv.NewReader(bufio.NewReader(file))
@@ -80,7 +88,6 @@ func makeRoomMap() RoomMap {
 
 func writeRoomCSVFiles(roomMap RoomMap) {
 	header := []string{"FirstName", "LastName", "email", "room", "grade", "StuFn", "StuLn"}
-	dir := "./output/"
 	for gradeRoom, parents := range roomMap {
 
 		gradeRoomSplitIdx := s.Index(gradeRoom, "-")
@@ -89,7 +96,7 @@ func writeRoomCSVFiles(roomMap RoomMap) {
 		room := gradeRoom[gradeRoomSplitIdx+1:]
 
 		fileName := "grade" + grade + "-room" + room + ".csv"
-		file, err := os.Create(dir + fileName)
+		file, err := os.Create(outputDir + "/" + fileName)
 		check(err)
 		writer := csv.NewWriter(bufio.NewWriter(file))
 		if err := writer.Write(header); err != nil {
