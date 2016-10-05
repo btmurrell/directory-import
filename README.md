@@ -41,14 +41,15 @@ You may optionally turn on logging output with the `-l` flag, possible values ar
  * `w` (warn) warnings while processing records, but record is accepted
  * `i` (info) information, such as processing summary
  * `d` (debug) lowest level detail logging output
+
  
- ### Configuration
- By default, the input file's column order is expected to be:
+### Configuration
+By default, the input file's column order is expected to be:
  
- TODO: FILL THIS OUT
+TODO: FILL THIS OUT
  
- FUTURE: you can specify the columns flag to indicate which spreadsheet column each 
+FUTURE: you can specify the columns flag to indicate which spreadsheet column each 
  
- ```
+```
  -columns "parentName:J,studentName:A,parentEmail:N,parentEmailAlt:P,grade:G,room:B"
- ```
+```
