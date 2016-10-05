@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	s "strings"
+	"flag"
 )
 
 var rowFieldIndices = new(RowFieldIndices)
@@ -18,9 +19,25 @@ var outputDir = "csv-output"
 
 func main() {
 
-	setup()
+	logLevel := flag.String("l", "f", "logging level valid values: p (panic), f (fatal), e (error), w (warn), i (info), d (debug)")
+	help := flag.Bool("h", false, "help: Show this message")
+	flag.Parse()
 
-	inputFileName := os.Args[1]
+	if *help {
+		usage()
+		os.Exit(0)
+	}
+
+	setup(loggerMap[*logLevel])
+
+	var inputFileName string
+	if len(flag.Args()) < 1 {
+		fmt.Printf("\n\tYou must enter a file name to convert.\n\n")
+		//os.Exit(0)
+		inputFileName = "inputData/2016-17.csv"
+	} else {
+		inputFileName = flag.Args()[0]
+	}
 
 	roomMap := makeRoomMap(&inputFileName)
 
@@ -31,8 +48,8 @@ func main() {
 	fmt.Printf("You will find all of the files in a folder named '%v' in this directory.\n\n", outputDir)
 }
 
-func setup() {
-	log.SetLevel(log.PanicLevel)
+func setup(logLevel log.Level) {
+	log.SetLevel(logLevel)
 
 	rowFieldIndices.studentName = 0
 	rowFieldIndices.parentName = 10
@@ -297,4 +314,21 @@ type recordImportError struct {
 }
 func (e *recordImportError) Error() string {
 	return fmt.Sprintf("%d - %s", e.cause, e.msg)
+}
+
+var loggerMap = map[string]log.Level{
+	"p": log.PanicLevel,
+	"f": log.FatalLevel,
+	"e": log.ErrorLevel,
+	"w": log.WarnLevel,
+	"i": log.InfoLevel,
+	"d": log.DebugLevel,
+}
+
+func usage() {
+	fmt.Fprintf(os.Stderr, "\nUsage of %s:\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "\n\t%s filename.csv\n\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "where filename.csv is the input file\n\n")
+	fmt.Fprintf(os.Stderr, "optionally, you may specify these flags\n\n")
+	flag.PrintDefaults()
 }
