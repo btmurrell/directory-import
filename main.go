@@ -32,9 +32,10 @@ func main() {
 
 	var inputFileName string
 	if len(flag.Args()) < 1 {
-		fmt.Printf("\n\tYou must enter a file name to convert.\n\n")
-		//os.Exit(0)
-		inputFileName = "inputData/2016-17.csv"
+		fmt.Println("\n\tYou must enter a file name to convert.")
+		fmt.Println("")
+		usage()
+		os.Exit(1)
 	} else {
 		inputFileName = flag.Args()[0]
 	}
@@ -327,8 +328,9 @@ var loggerMap = map[string]log.Level{
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "\nUsage of %s:\n", os.Args[0])
-	fmt.Fprintf(os.Stderr, "\n\t%s filename.csv\n\n", os.Args[0])
-	fmt.Fprintf(os.Stderr, "where filename.csv is the input file\n\n")
-	fmt.Fprintf(os.Stderr, "optionally, you may specify these flags\n\n")
+	fmt.Fprintf(os.Stderr, "\n\t%s filename.csv", os.Args[0])
+	fmt.Fprintln(os.Stderr, "\nwhere filename.csv is the input file")
+	fmt.Fprintln(os.Stderr, "\noptionally, you may specify these flags")
+	fmt.Println("")
 	flag.PrintDefaults()
 }
