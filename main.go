@@ -3,15 +3,15 @@ package main
 import (
 	"bufio"
 	"encoding/csv"
+	"flag"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"io"
 	"os"
 	s "strings"
-	"flag"
 )
 
-var rowFieldIndices = new(RowFieldIndices)
+var rowFieldIndices = new(fieldIndices)
 var noEmailCount = 0
 var csvRecordsCount = 0
 var processedRecordsCount = 0
@@ -40,9 +40,9 @@ func main() {
 		inputFileName = flag.Args()[0]
 	}
 
-	roomMap := makeRoomMap(&inputFileName)
+	rooms := makeRoomMap(&inputFileName)
 
-	writeRoomCSVFiles(roomMap)
+	writeRoomCSVFiles(rooms)
 
 	fmt.Printf("\nFinished successfully processing %v out of %v rows.\n\n", processedRecordsCount, csvRecordsCount)
 	fmt.Println("\nYour file has been converted to multiple csv files for import into my-pta.")
@@ -62,14 +62,14 @@ func setup(logLevel log.Level) {
 	os.Mkdir(outputDir, 0755)
 }
 
-func makeRoomMap(inputFileName *string) RoomMap {
+func makeRoomMap(inputFileName *string) roomMap {
 	dir := "./"
 	file, err := os.Open(dir + *inputFileName)
 	check(err)
 
 	reader := csv.NewReader(bufio.NewReader(file))
 
-	roomMap := make(RoomMap)
+	rooms := make(roomMap)
 
 	for {
 		row, errRead := reader.Read()
@@ -92,7 +92,7 @@ func makeRoomMap(inputFileName *string) RoomMap {
 			// class in the same room.  This will allow creating
 			// separate csv files for same room, for each of the grades
 			gradeRoomKey := parentRow[4] + "-" + parentRow[3]
-			roomMap.Add(gradeRoomKey, parentRow)
+			rooms.Add(gradeRoomKey, parentRow)
 			processedRecordsCount++
 		} else {
 			discardRow(errParent, row)
@@ -101,12 +101,12 @@ func makeRoomMap(inputFileName *string) RoomMap {
 		csvRecordsCount++
 	}
 
-	return roomMap
+	return rooms
 }
 
-func writeRoomCSVFiles(roomMap RoomMap) {
+func writeRoomCSVFiles(rooms roomMap) {
 	header := []string{"FirstName", "LastName", "email", "room", "grade", "StuFn", "StuLn"}
-	for gradeRoom, parents := range roomMap {
+	for gradeRoom, parents := range rooms {
 
 		gradeRoomSplitIdx := s.Index(gradeRoom, "-")
 		// key is grade-room, split these out
@@ -210,7 +210,7 @@ func makeParentRow(row []string) ([]string, error) {
 	return result, nil
 }
 
-func resolveParentName(row []string) (Name) {
+func resolveParentName(row []string) name {
 	// parentName:
 	// This implementation is based on value containing one string of "Firstname Lastname"
 	// this splits on the space, takes first part as parentFName and all the rest as parentLName
@@ -232,8 +232,8 @@ func resolveParentName(row []string) (Name) {
 			parentLName = "[parent unspecified] student: " + student.last
 			log.WithFields(log.Fields{
 				"first name": parentFName,
-				"last name": parentLName,
-				"row": row,
+				"last name":  parentLName,
+				"row":        row,
 			}).Warn("could not identify multi-part parent name, using student's last name instead")
 		}
 
@@ -243,22 +243,22 @@ func resolveParentName(row []string) (Name) {
 		parentLName = "[parent unspecified] student: " + student.last
 		log.WithFields(log.Fields{
 			"first name": parentFName,
-			"last name": parentLName,
-			"row": row,
+			"last name":  parentLName,
+			"row":        row,
 		}).Warn("No parent name provided, using student's instead")
 	}
 
-	return Name{parentFName, parentLName}
+	return name{parentFName, parentLName}
 }
 
-func resolveStudentName(row []string) (Name) {
+func resolveStudentName(row []string) name {
 	// stuName
 	// This implementation is based on value containing one string "Lastname, Firstname"
 	// this splits on ", ", breaking out the single field into stuFName and stuLName fields
 	stuName := s.Split(row[rowFieldIndices.studentName], ", ")
 	stuFName := stuName[1]
 	stuLName := stuName[0]
-	return Name{stuFName, stuLName}
+	return name{stuFName, stuLName}
 }
 
 func resolveEmail(row []string) (string, error) {
@@ -279,7 +279,7 @@ func resolveEmail(row []string) (string, error) {
 	return email, nil
 }
 
-type RowFieldIndices struct {
+type fieldIndices struct {
 	parentName     int
 	studentName    int
 	parentEmail    int
@@ -288,20 +288,21 @@ type RowFieldIndices struct {
 	room           int
 }
 
-type Name struct {
+type name struct {
 	first string
-	last string
+	last  string
 }
 
-type RoomMap map[string][][]string
-func (r RoomMap) Add(key string, value []string) {
+type roomMap map[string][][]string
+
+func (r roomMap) Add(key string, value []string) {
 	_, ok := r[key]
 	if !ok {
 		r[key] = make([][]string, 0, 20)
 	}
 	r[key] = append(r[key], value)
 }
-func (r RoomMap) Peek(key string) ([][]string, bool) {
+func (r roomMap) Peek(key string) ([][]string, bool) {
 	slice, ok := r[key]
 	if !ok || len(slice) == 0 {
 		return make([][]string, 0), false
@@ -313,6 +314,7 @@ type recordImportError struct {
 	cause string
 	msg   string
 }
+
 func (e *recordImportError) Error() string {
 	return fmt.Sprintf("%d - %s", e.cause, e.msg)
 }
