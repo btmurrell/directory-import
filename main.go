@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"crypto/md5"
 	"encoding/csv"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
@@ -16,6 +18,7 @@ var noEmailCount = 0
 var csvRecordsCount = 0
 var processedRecordsCount = 0
 var outputDir = "csv-output"
+var students = make(map[string]*student)
 
 func main() {
 
@@ -42,22 +45,38 @@ func main() {
 
 	rooms := makeRoomMap(&inputFileName)
 
+	for k, stu := range students {
+		fmt.Printf("STUX: %s-> %s\n", k, stu)
+		fmt.Printf("\t parent len: %d\n", len(stu.parents))
+		for _, par := range stu.parents {
+			fmt.Printf("\t PARX: %s\n", par.String())
+		}
+	}
+
 	writeRoomCSVFiles(rooms)
 
 	fmt.Printf("\nFinished successfully processing %v out of %v rows.\n\n", processedRecordsCount, csvRecordsCount)
 	fmt.Println("\nYour file has been converted to multiple csv files for import into my-pta.")
 	fmt.Printf("You will find all of the files in a folder named '%v' in this directory.\n\n", outputDir)
+
+	fmt.Printf("Total number of students: %d\n", len(students))
 }
 
 func setup(logLevel log.Level) {
 	log.SetLevel(logLevel)
 
 	rowFieldIndices.studentName = 0
+	rowFieldIndices.teacher = 1
+	rowFieldIndices.room = 2
+	rowFieldIndices.primaryPhone = 3
+	rowFieldIndices.streetAddress = 4
+	rowFieldIndices.city = 5
+	rowFieldIndices.zip = 6
+	rowFieldIndices.grade = 7
+	rowFieldIndices.parentType = 9
 	rowFieldIndices.parentName = 10
 	rowFieldIndices.parentEmail = 14
 	rowFieldIndices.parentEmailAlt = 15
-	rowFieldIndices.room = 2
-	rowFieldIndices.grade = 7
 
 	os.Mkdir(outputDir, 0755)
 }
@@ -191,6 +210,11 @@ func makeParentRow(row []string) ([]string, error) {
 
 	parent := resolveParentName(row)
 	student := resolveStudentName(row)
+
+	par := resolveParent(row)
+	stuPtr := resolveStudent(row)
+	stuPtr.parents = append(stuPtr.parents, par)
+
 	room := row[rowFieldIndices.room]
 	// grade == 0 is Kindergarten; re-assign where appropriate
 	grade := row[rowFieldIndices.grade]
@@ -261,6 +285,42 @@ func resolveStudentName(row []string) name {
 	return name{stuFName, stuLName}
 }
 
+func resolveStudent(row []string) *student {
+	stuName := resolveStudentName(row)
+	studentCandidate := student{
+		name:    stuName,
+		teacher: row[rowFieldIndices.teacher],
+		room:    row[rowFieldIndices.room],
+		grade:   row[rowFieldIndices.grade],
+	}
+	studentCandidate.parents = make([]parent, 0, 2)
+
+	key := studentCandidate.Key()
+	_, ok := students[key]
+	if !ok {
+		students[key] = &studentCandidate
+	}
+	return students[key]
+}
+
+func resolveParent(row []string) parent {
+	pName := resolveParentName(row)
+	email, _ := resolveEmail(row)
+	return parent{
+		pName,
+		address{
+			row[rowFieldIndices.streetAddress],
+			row[rowFieldIndices.city],
+			row[rowFieldIndices.zip],
+		},
+		row[rowFieldIndices.primaryPhone],
+		row[rowFieldIndices.parentType],
+		nil,
+		email,
+		make([]recordImportError, 1),
+	}
+}
+
 func resolveEmail(row []string) (string, error) {
 	// if no email, check for alternate
 	email := row[rowFieldIndices.parentEmail]
@@ -286,11 +346,59 @@ type fieldIndices struct {
 	parentEmailAlt int
 	grade          int
 	room           int
+	teacher        int
+	primaryPhone   int
+	streetAddress  int
+	city           int
+	zip            int
+	parentType     int
 }
 
 type name struct {
 	first string
 	last  string
+}
+
+type student struct {
+	name    name
+	teacher string
+	room    string
+	grade   string
+	parents []parent
+}
+
+func (stu student) String() string {
+	return stu.name.last + ", " + stu.name.first + ", " + stu.teacher + ", " + stu.room + ", " + stu.grade
+}
+func (stu student) Key() string {
+	data := []byte(stu.String())
+	sum := md5.Sum(data)
+	key := hex.EncodeToString(sum[:md5.Size])
+	return key
+}
+
+type address struct {
+	street string
+	city   string
+	zip    string
+}
+
+func (a address) String() string {
+	return a.street + ", " + a.city + ", CA " + a.zip
+}
+
+type parent struct {
+	name         name
+	address      address
+	primaryPhone string
+	parentType   string
+	students     []*student
+	email        string
+	meta         []recordImportError
+}
+
+func (par parent) String() string {
+	return par.name.last + ", " + par.name.first + ", " + par.address.String() + ", " + par.email
 }
 
 type roomMap map[string][][]string
