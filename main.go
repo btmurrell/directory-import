@@ -27,8 +27,7 @@ func main() {
 	flag.Parse()
 
 	if *help {
-		usage()
-		os.Exit(0)
+		usage(0)
 	}
 
 	setup(loggerMap[*logLevel])
@@ -37,8 +36,7 @@ func main() {
 	if len(flag.Args()) < 1 {
 		fmt.Println("\n\tYou must enter a file name to convert.")
 		fmt.Println("")
-		usage()
-		os.Exit(1)
+		usage(1)
 	} else {
 		inputFileName = flag.Args()[0]
 	}
@@ -305,20 +303,35 @@ func resolveStudent(row []string) *student {
 
 func resolveParent(row []string) parent {
 	pName := resolveParentName(row)
-	email, _ := resolveEmail(row)
-	return parent{
-		pName,
-		address{
+	email, err := resolveEmail(row)
+	par := parent{
+		name: pName,
+		address: address{
 			row[rowFieldIndices.streetAddress],
 			row[rowFieldIndices.city],
 			row[rowFieldIndices.zip],
 		},
-		row[rowFieldIndices.primaryPhone],
-		row[rowFieldIndices.parentType],
-		nil,
-		email,
-		make([]recordImportError, 1),
+		primaryPhone: row[rowFieldIndices.primaryPhone],
+		parentType: row[rowFieldIndices.parentType],
 	}
+	if err != nil {
+		if rie, ok := err.(*recordImportError); ok {
+			par.meta = make([]*recordImportError, 1)
+			par.meta = append(par.meta, rie)
+		}
+
+
+	} else {
+		par.email = email
+	}
+	return par
+}
+
+func msgFromImportError(err error) (string, string) {
+	if rie, ok := err.(*recordImportError); ok {
+		return rie.cause, rie.msg
+	}
+	return "", ""
 }
 
 func resolveEmail(row []string) (string, error) {
@@ -394,11 +407,18 @@ type parent struct {
 	parentType   string
 	students     []*student
 	email        string
-	meta         []recordImportError
+	meta         []*recordImportError
 }
 
 func (par parent) String() string {
-	return par.name.last + ", " + par.name.first + ", " + par.address.String() + ", " + par.email
+	resp := par.name.last + ", " + par.name.first + ", " + par.address.String() + ", " + par.email + ", " + par.primaryPhone
+	if len(par.meta) > 0 {
+		for _, err := range par.meta {
+			_, msg := msgFromImportError(err)
+			resp += "ERROR " + msg + "\n"
+		}
+	}
+	return resp
 }
 
 type roomMap map[string][][]string
@@ -422,9 +442,8 @@ type recordImportError struct {
 	cause string
 	msg   string
 }
-
-func (e *recordImportError) Error() string {
-	return fmt.Sprintf("%d - %s", e.cause, e.msg)
+func (err *recordImportError) Error() string {
+	return fmt.Sprintf("%d - %s", err.cause, err.msg)
 }
 
 var loggerMap = map[string]log.Level{
@@ -436,11 +455,12 @@ var loggerMap = map[string]log.Level{
 	"d": log.DebugLevel,
 }
 
-func usage() {
+func usage(exitCode int) {
 	fmt.Fprintf(os.Stderr, "\nUsage of %s:\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "\n\t%s filename.csv", os.Args[0])
 	fmt.Fprintln(os.Stderr, "\nwhere filename.csv is the input file")
 	fmt.Fprintln(os.Stderr, "\noptionally, you may specify these flags")
 	fmt.Println("")
 	flag.PrintDefaults()
+	os.Exit(exitCode)
 }
