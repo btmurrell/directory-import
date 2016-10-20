@@ -7,10 +7,11 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
 	"io"
 	"os"
 	s "strings"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 var rowFieldIndices = new(fieldIndices)
@@ -201,17 +202,17 @@ func discardRow(err error, row []string) {
 
 func makeParentRow(row []string) ([]string, error) {
 
-	email, emailErr := resolveEmail(row)
-	if _, ok := emailErr.(*recordImportError); ok {
-		return nil, emailErr
-	}
+	par := resolveParent(row)
+	stuPtr := resolveStudent(row)
+	stuPtr.parents = append(stuPtr.parents, par)
 
 	parent := resolveParentName(row)
 	student := resolveStudentName(row)
 
-	par := resolveParent(row)
-	stuPtr := resolveStudent(row)
-	stuPtr.parents = append(stuPtr.parents, par)
+	email, emailErr := resolveEmail(row)
+	if _, ok := emailErr.(*recordImportError); ok {
+		return nil, emailErr
+	}
 
 	room := row[rowFieldIndices.room]
 	// grade == 0 is Kindergarten; re-assign where appropriate
@@ -312,15 +313,13 @@ func resolveParent(row []string) parent {
 			row[rowFieldIndices.zip],
 		},
 		primaryPhone: row[rowFieldIndices.primaryPhone],
-		parentType: row[rowFieldIndices.parentType],
+		parentType:   row[rowFieldIndices.parentType],
 	}
 	if err != nil {
 		if rie, ok := err.(*recordImportError); ok {
-			par.meta = make([]*recordImportError, 1)
+			par.meta = make([]*recordImportError, 0)
 			par.meta = append(par.meta, rie)
 		}
-
-
 	} else {
 		par.email = email
 	}
@@ -415,7 +414,7 @@ func (par parent) String() string {
 	if len(par.meta) > 0 {
 		for _, err := range par.meta {
 			_, msg := msgFromImportError(err)
-			resp += "ERROR " + msg + "\n"
+			resp += ", ERROR " + msg + "\n"
 		}
 	}
 	return resp
@@ -442,8 +441,9 @@ type recordImportError struct {
 	cause string
 	msg   string
 }
+
 func (err *recordImportError) Error() string {
-	return fmt.Sprintf("%d - %s", err.cause, err.msg)
+	return fmt.Sprintf("%s - %s", err.cause, err.msg)
 }
 
 var loggerMap = map[string]log.Level{
