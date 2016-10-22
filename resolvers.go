@@ -18,7 +18,7 @@ func resolveEmail(row []string) (string, error) {
 		}
 	}
 	if len(email) == 0 {
-		return "", &recordImportError{"NO_EMAIL", "No email address found"}
+		return "", &recordImportError{noEmail, "No email address found"}
 	}
 	return email, nil
 }

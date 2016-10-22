@@ -190,11 +190,11 @@ func check(e error) {
 
 func discardRow(err error, row []string) {
 	if rie, ok := err.(*recordImportError); ok {
-		if rie.cause == "NO_EMAIL" {
+		if rie.cause == noEmail {
 			noEmailCount++
 			log.WithFields(log.Fields{
 				"row": row,
-			}).Error("DISCARDING ROW: no email found")
+			}).Errorf("DISCARDING ROW: %s\n", rie.msg)
 		}
 	}
 }
@@ -232,11 +232,11 @@ func makeParentRow(row []string) ([]string, error) {
 	return result, nil
 }
 
-func msgFromImportError(err error) (string, string) {
+func msgFromImportError(err error) (int, string) {
 	if rie, ok := err.(*recordImportError); ok {
 		return rie.cause, rie.msg
 	}
-	return "", ""
+	return -1, ""
 }
 
 func usage(exitCode int) {

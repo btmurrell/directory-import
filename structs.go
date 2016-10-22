@@ -34,12 +34,12 @@ type fieldIndices struct {
 }
 
 type recordImportError struct {
-	cause string
+	cause int
 	msg   string
 }
 
 func (err *recordImportError) Error() string {
-	return fmt.Sprintf("%s - %s", err.cause, err.msg)
+	return fmt.Sprintf("[%v] - %s", err.cause, err.msg)
 }
 
 type roomMap map[string][][]string
@@ -119,7 +119,7 @@ func (par *parent) hasEmailError() bool  {
 	if len(par.meta) > 0 {
 		for _, err := range par.meta {
 			errType, _ := msgFromImportError(err)
-			return errType == "NO_EMAIL"
+			return errType == noEmail
 		}
 	}
 	return false
