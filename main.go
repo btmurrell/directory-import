@@ -29,7 +29,7 @@ func main() {
 		usage(0)
 	}
 
-	setup(loggerMap[*logLevel])
+	setup(*logLevel)
 
 	var inputFileName string
 	if len(flag.Args()) < 1 {
@@ -59,8 +59,9 @@ func main() {
 	fmt.Printf("Total number of students: %d\n", len(students))
 }
 
-func setup(logLevel log.Level) {
-	log.SetLevel(logLevel)
+func setup(logLevel string) {
+
+	log.SetLevel(loggerMap[logLevel])
 
 	rowFieldIndices.studentName = 0
 	rowFieldIndices.teacher = 1

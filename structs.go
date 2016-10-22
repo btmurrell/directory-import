@@ -1,10 +1,10 @@
 package main
 
 import (
-	log "github.com/Sirupsen/logrus"
-	"fmt"
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
+	log "github.com/Sirupsen/logrus"
 )
 
 var loggerMap = map[string]log.Level{
@@ -110,4 +110,3 @@ func (par parent) String() string {
 	}
 	return resp
 }
-

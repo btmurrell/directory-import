@@ -91,10 +91,10 @@ func resolveParentName(row []string) name {
 func resolveStudentName(row []string) name {
 	// stuName
 	// This implementation is based on value containing one string "Lastname, Firstname"
-	// this splits on ", ", breaking out the single field into stuFName and stuLName fields
-	stuName := s.Split(row[rowFieldIndices.studentName], ", ")
-	stuFName := stuName[1]
-	stuLName := stuName[0]
+	// this splits on ",", breaking out the single field into stuFName and stuLName fields
+	stuName := s.Split(row[rowFieldIndices.studentName], ",")
+	stuFName := s.TrimSpace(stuName[1])
+	stuLName := s.TrimSpace(stuName[0])
 	return name{stuFName, stuLName}
 }
 
@@ -115,4 +115,3 @@ func resolveStudent(row []string) *student {
 	}
 	return students[key]
 }
-
