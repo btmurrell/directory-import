@@ -84,6 +84,12 @@ func (stu student) Key() string {
 	key := hex.EncodeToString(sum[:md5.Size])
 	return key
 }
+func (stu *student) gradeVal() string {
+	if stu.grade == "0" {
+		return "K"
+	}
+	return stu.grade
+}
 
 type address struct {
 	street string

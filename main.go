@@ -50,7 +50,10 @@ func main() {
 		}
 	}
 
-	writeRoomCSVFiles(rooms)
+	writeRoomCSVFiles(rooms, outputDir)
+
+	rooms2 := makeRoomMap2()
+	writeRoomCSVFiles(rooms2, "csv-output-2")
 
 	fmt.Printf("\nFinished successfully processing %v out of %v rows.\n\n", processedRecordsCount, csvRecordsCount)
 	fmt.Println("\nYour file has been converted to multiple csv files for import into my-pta.")
@@ -76,7 +79,6 @@ func setup(logLevel string) {
 	rowFieldIndices.parentEmail = 14
 	rowFieldIndices.parentEmailAlt = 15
 
-	os.Mkdir(outputDir, 0755)
 }
 
 func makeRoomMap(inputFileName *string) roomMap {
@@ -121,7 +123,21 @@ func makeRoomMap(inputFileName *string) roomMap {
 	return rooms
 }
 
-func writeRoomCSVFiles(rooms roomMap) {
+func makeRoomMap2() roomMap {
+	rooms := make(roomMap)
+	for _, student := range students {
+		key := student.gradeVal() + "-" + student.room
+		for _, parent := range student.parents {
+			if !parent.hasEmailError() {
+				rooms.Add(key, []string{parent.name.first, parent.name.last, parent.email, student.room, student.gradeVal(), student.name.first, student.name.last})
+			}
+		}
+	}
+	return rooms
+}
+
+func writeRoomCSVFiles(rooms roomMap, outputDir string) {
+	os.Mkdir(outputDir, 0755)
 	header := []string{"FirstName", "LastName", "email", "room", "grade", "StuFn", "StuLn"}
 	for gradeRoom, parents := range rooms {
 
@@ -145,7 +161,6 @@ func writeRoomCSVFiles(rooms roomMap) {
 			log.Fatal(err)
 		}
 	}
-
 }
 
 func logRow(row []string, parentRow []string) {
