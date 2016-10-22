@@ -100,7 +100,7 @@ func resolveStudentName(row []string) name {
 
 func resolveStudent(row []string) *student {
 	stuName := resolveStudentName(row)
-	studentCandidate := student{
+	studentCandidate := &student{
 		name:    stuName,
 		teacher: row[rowFieldIndices.teacher],
 		room:    row[rowFieldIndices.room],
@@ -111,7 +111,7 @@ func resolveStudent(row []string) *student {
 	key := studentCandidate.Key()
 	_, ok := students[key]
 	if !ok {
-		students[key] = &studentCandidate
+		students[key] = studentCandidate
 	}
 	return students[key]
 }

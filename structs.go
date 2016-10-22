@@ -7,6 +7,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+const noEmail = iota
+
 var loggerMap = map[string]log.Level{
 	"p": log.PanicLevel,
 	"f": log.FatalLevel,
@@ -61,6 +63,9 @@ type name struct {
 	first string
 	last  string
 }
+func (n *name) String() string {
+	return n.last + ", " + n.first
+}
 
 type student struct {
 	name    name
@@ -70,8 +75,8 @@ type student struct {
 	parents []parent
 }
 
-func (stu student) String() string {
-	return stu.name.last + ", " + stu.name.first + ", " + stu.teacher + ", " + stu.room + ", " + stu.grade
+func (stu *student) String() string {
+	return stu.name.String() + ", " + stu.teacher + ", " + stu.room + ", " + stu.grade
 }
 func (stu student) Key() string {
 	data := []byte(stu.String())
@@ -86,7 +91,7 @@ type address struct {
 	zip    string
 }
 
-func (a address) String() string {
+func (a *address) String() string {
 	return a.street + ", " + a.city + ", CA " + a.zip
 }
 
@@ -100,8 +105,8 @@ type parent struct {
 	meta         []*recordImportError
 }
 
-func (par parent) String() string {
-	resp := par.parentType + ": " + par.name.last + ", " + par.name.first + ", " + par.address.String() + ", " + par.email + ", " + par.primaryPhone
+func (par *parent) String() string {
+	resp := par.parentType + ": " + par.name.String() + ", " + par.address.String() + ", " + par.email + ", " + par.primaryPhone
 	if len(par.meta) > 0 {
 		for _, err := range par.meta {
 			_, msg := msgFromImportError(err)
@@ -109,4 +114,14 @@ func (par parent) String() string {
 		}
 	}
 	return resp
+}
+func (par *parent) hasEmailError() bool  {
+	if len(par.meta) > 0 {
+		for _, err := range par.meta {
+			errType, _ := msgFromImportError(err)
+			return errType == "NO_EMAIL"
+		}
+	}
+	return false
+
 }
