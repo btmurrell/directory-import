@@ -14,9 +14,8 @@ import (
 
 var rowFieldIndices = new(fieldIndices)
 var noEmailCount = 0
-var csvRecordsCount = 0
 var csvFileIndex = 0
-var processedRecordsCount = 0
+var recordsForImportCount = 0
 var outputDir = "csv-output"
 var students = make(map[string]*student)
 
@@ -41,25 +40,16 @@ func main() {
 		inputFileName = flag.Args()[0]
 	}
 
-	rooms := makeRoomMap(&inputFileName)
-
-	writeRoomCSVFiles(rooms, outputDir)
-
 	ingestFile(&inputFileName)
-	rooms2 := makeRoomMap2()
-	writeRoomCSVFiles(rooms2, "csv-output-2")
+	rooms := makeRoomMap()
+	writeRoomCSVFiles(rooms)
 
-	for k, stu := range students {
-		fmt.Printf("STUX: %s-> %s\n", k, stu)
-		fmt.Printf("\t parent len: %d\n", len(stu.parents))
-		for _, par := range stu.parents {
-			fmt.Printf("\t PARX: %s\n", par.String())
-		}
-	}
+	logFin()
 
-	fmt.Printf("\nFinished successfully processing %v out of %v rows.\n\n", processedRecordsCount, csvRecordsCount)
-	fmt.Println("\nYour file has been converted to multiple csv files for import into my-pta.")
-	fmt.Printf("You will find all of the files in a folder named '%v' in this directory.\n\n", outputDir)
+	fmt.Printf("\nFinished successfully processing %v out of %v rows for CSV import.\n", recordsForImportCount, (csvFileIndex-1))
+	fmt.Printf("(%d rows did not have e-mail addresses.)\n\n", noEmailCount)
+	fmt.Println("Your file has been converted to multiple CSV files for import into my-pta.")
+	fmt.Printf("You will find all of the files in a folder named '%v' in this current folder.\n\n", outputDir)
 
 	fmt.Printf("Total number of students: %d\n", len(students))
 }
@@ -93,10 +83,8 @@ func ingestFile(inputFileName *string) {
 	for {
 		row, errRead := reader.Read()
 		if errRead == io.EOF {
-			logFin()
 			break
 		}
-		log.Debugf("iteration #%v", csvFileIndex)
 		if csvFileIndex == 0 {
 			// header
 			csvFileIndex++
@@ -114,64 +102,27 @@ func processRow(row *[]string) {
 	logRow(row, stuPtr)
 }
 
-func makeRoomMap(inputFileName *string) roomMap {
-	dir := "./"
-	file, err := os.Open(dir + *inputFileName)
-	check(err)
 
-	reader := csv.NewReader(bufio.NewReader(file))
-
-	rooms := make(roomMap)
-
-	for {
-		row, errRead := reader.Read()
-		if errRead == io.EOF {
-			logFin()
-			break
-		}
-		log.Debugf("iteration #%v", csvRecordsCount)
-		if csvRecordsCount == 0 {
-			// header
-			csvRecordsCount++
-			continue
-		}
-
-		parentRow, errParent := makeParentRow(&row)
-		if errParent == nil {
-			// only add parentRows which have email addresses
-			// key is "grade-room"; this accounts for combo rooms,
-			// for example, there's usually a combo grade 4 + grade 5
-			// class in the same room.  This will allow creating
-			// separate csv files for same room, for each of the grades
-			gradeRoomKey := parentRow[4] + "-" + parentRow[3]
-			rooms.Add(gradeRoomKey, parentRow)
-			processedRecordsCount++
-		} else {
-			discardRow(errParent, &row)
-		}
-		csvRecordsCount++
-	}
-
-	return rooms
-}
-
-func makeRoomMap2() roomMap {
+func makeRoomMap() *roomMap {
 	rooms := make(roomMap)
 	for _, student := range students {
 		key := student.gradeVal() + "-" + student.room
 		for _, parent := range student.parents {
-			if !parent.hasEmailError() {
-				rooms.Add(key, []string{parent.name.first, parent.name.last, parent.email, student.room, student.gradeVal(), student.name.first, student.name.last})
+			if parent.hasEmailError() {
+				discardParentFromImport(parent, student)
+			} else {
+				rooms.add(key, []string{parent.name.first, parent.name.last, parent.email, student.room, student.gradeVal(), student.name.first, student.name.last})
+				recordsForImportCount++
 			}
 		}
 	}
-	return rooms
+	return &rooms
 }
 
-func writeRoomCSVFiles(rooms roomMap, outputDir string) {
+func writeRoomCSVFiles(rooms *roomMap) {
 	os.Mkdir(outputDir, 0755)
 	header := []string{"FirstName", "LastName", "email", "room", "grade", "StuFn", "StuLn"}
-	for gradeRoom, parents := range rooms {
+	for gradeRoom, parents := range *rooms {
 
 		gradeRoomSplitIdx := s.Index(gradeRoom, "-")
 		// key is grade-room, split these out
@@ -197,6 +148,8 @@ func writeRoomCSVFiles(rooms roomMap, outputDir string) {
 
 func logRow(row *[]string, stud *student) {
 
+	log.Debugf("---------- row #%v --------", csvFileIndex)
+
 	log.WithFields(log.Fields{
 		"count": len(*row),
 	}).Debug("# columns")
@@ -205,8 +158,8 @@ func logRow(row *[]string, stud *student) {
 		"row": *row,
 	}).Debug("RAW ROW:")
 
-	i := 0
 	rowFields := make(log.Fields, len(*row))
+	i := 0
 	for value := range *row {
 		// this simply makes a field label with 2-digit, 0-padded name
 		rowFields["f"+fmt.Sprintf("%02d", i)] = (*row)[value]
@@ -215,15 +168,24 @@ func logRow(row *[]string, stud *student) {
 	log.WithFields(rowFields).Debug("Row fields:")
 
 	log.WithFields(log.Fields{
-		"student": *stud,
+		"student": (*stud).String(),
 	}).Debug("STUDENT + PARENTS:")
 }
 
 func logFin() {
+	if (log.GetLevel() == log.DebugLevel) {
+		for k, stu := range students {
+			fmt.Printf("STUDENT: %s-> %s\n", k, stu)
+			fmt.Printf("\t parent len: %d\n", len(stu.parents))
+			for _, par := range stu.parents {
+				fmt.Printf("\t PARENT: %s\n", par.String())
+			}
+		}
+	}
 	log.WithFields(log.Fields{
-		"csvRecords":       csvRecordsCount,
-		"processedRecords": processedRecordsCount,
-	}).Infof("Finished successfully processing %v out of %v rows.\n", processedRecordsCount, csvRecordsCount)
+		"csvRecords": csvFileIndex,
+		"processedRecordsForImport": recordsForImportCount,
+	}).Infof("Finished successfully processing %v out of %v rows.\n", recordsForImportCount, csvFileIndex)
 	log.WithFields(log.Fields{
 		"count": noEmailCount,
 	}).Info("Rows with no email")
@@ -235,44 +197,12 @@ func check(e error) {
 	}
 }
 
-func discardRow(err error, row *[]string) {
-	if rie, ok := err.(*recordImportError); ok {
-		if rie.cause == noEmail {
-			noEmailCount++
-			log.WithFields(log.Fields{
-				"row": row,
-			}).Errorf("DISCARDING ROW: %s\n", rie.msg)
-		}
-	}
-}
-
-func makeParentRow(row *[]string) ([]string, error) {
-
-	parent := resolveParentName(row)
-	student := resolveStudentName(row)
-
-	email, emailErr := resolveEmail(row)
-	if _, ok := emailErr.(*recordImportError); ok {
-		return nil, emailErr
-	}
-
-	room := (*row)[rowFieldIndices.room]
-	// grade == 0 is Kindergarten; re-assign where appropriate
-	grade := (*row)[rowFieldIndices.grade]
-	if grade == "0" {
-		grade = "K"
-	}
-
-	var result = make([]string, 7)
-	result[0] = parent.first
-	result[1] = parent.last
-	result[2] = email
-	result[3] = room
-	result[4] = grade
-	result[5] = student.first
-	result[6] = student.last
-
-	return result, nil
+func discardParentFromImport(par *parent, stu *student) {
+	log.WithFields(log.Fields{
+		"parent": (*par).String(),
+		"student": (*stu).String(),
+	}).Errorf("DISCARDING PARENT FROM CSV IMPORT; NO EMAIL ADDRESS")
+	noEmailCount++
 }
 
 func msgFromImportError(err error) (int, string) {

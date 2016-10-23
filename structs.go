@@ -44,14 +44,14 @@ func (err *recordImportError) Error() string {
 
 type roomMap map[string][][]string
 
-func (r roomMap) Add(key string, value []string) {
+func (r roomMap) add(key string, value []string) {
 	_, ok := r[key]
 	if !ok {
 		r[key] = make([][]string, 0, 20)
 	}
 	r[key] = append(r[key], value)
 }
-func (r roomMap) Peek(key string) ([][]string, bool) {
+func (r roomMap) peek(key string) ([][]string, bool) {
 	slice, ok := r[key]
 	if !ok || len(slice) == 0 {
 		return make([][]string, 0), false
@@ -76,9 +76,17 @@ type student struct {
 }
 
 func (stu *student) String() string {
-	return stu.name.String() + ", " + stu.teacher + ", " + stu.room + ", " + stu.grade
+	resp := stu.name.String() + ", " + stu.teacher + ", " + stu.room + ", " + stu.grade + ", parents: ["
+	for i, par := range stu.parents {
+		if i > 0 {
+			resp += ", "
+		}
+		resp += (*par).String()
+	}
+	resp += "]"
+	return resp
 }
-func (stu student) Key() string {
+func (stu student) key() string {
 	data := []byte(stu.String())
 	sum := md5.Sum(data)
 	key := hex.EncodeToString(sum[:md5.Size])
@@ -114,20 +122,27 @@ type parent struct {
 func (par *parent) String() string {
 	resp := par.parentType + ": " + par.name.String() + ", " + par.address.String() + ", " + par.email + ", " + par.primaryPhone
 	if len(par.meta) > 0 {
-		for _, err := range par.meta {
+		resp += ", meta: ["
+		for i, err := range par.meta {
 			_, msg := msgFromImportError(err)
-			resp += "\n\t\tERROR " + msg
+			if i > 0 {
+				resp += ", "
+			}
+			resp += "ERROR: " + msg
 		}
+		resp += "]"
 	}
 	return resp
 }
 func (par *parent) hasEmailError() bool  {
+	hasError := false
 	if len(par.meta) > 0 {
 		for _, err := range par.meta {
 			errType, _ := msgFromImportError(err)
-			return errType == noEmail
+			if errType == noEmail {
+				hasError = true
+			}
 		}
 	}
-	return false
-
+	return hasError
 }
