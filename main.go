@@ -15,6 +15,7 @@ import (
 var rowFieldIndices = new(fieldIndices)
 var noEmailCount = 0
 var csvRecordsCount = 0
+var csvFileIndex = 0
 var processedRecordsCount = 0
 var outputDir = "csv-output"
 var students = make(map[string]*student)
@@ -42,6 +43,12 @@ func main() {
 
 	rooms := makeRoomMap(&inputFileName)
 
+	writeRoomCSVFiles(rooms, outputDir)
+
+	ingestFile(&inputFileName)
+	rooms2 := makeRoomMap2()
+	writeRoomCSVFiles(rooms2, "csv-output-2")
+
 	for k, stu := range students {
 		fmt.Printf("STUX: %s-> %s\n", k, stu)
 		fmt.Printf("\t parent len: %d\n", len(stu.parents))
@@ -49,11 +56,6 @@ func main() {
 			fmt.Printf("\t PARX: %s\n", par.String())
 		}
 	}
-
-	writeRoomCSVFiles(rooms, outputDir)
-
-	rooms2 := makeRoomMap2()
-	writeRoomCSVFiles(rooms2, "csv-output-2")
 
 	fmt.Printf("\nFinished successfully processing %v out of %v rows.\n\n", processedRecordsCount, csvRecordsCount)
 	fmt.Println("\nYour file has been converted to multiple csv files for import into my-pta.")
@@ -81,6 +83,37 @@ func setup(logLevel string) {
 
 }
 
+func ingestFile(inputFileName *string) {
+	dir := "./"
+	file, err := os.Open(dir + *inputFileName)
+	check(err)
+
+	reader := csv.NewReader(bufio.NewReader(file))
+
+	for {
+		row, errRead := reader.Read()
+		if errRead == io.EOF {
+			logFin()
+			break
+		}
+		log.Debugf("iteration #%v", csvFileIndex)
+		if csvFileIndex == 0 {
+			// header
+			csvFileIndex++
+			continue
+		}
+		processRow(&row)
+		csvFileIndex++
+	}
+}
+
+func processRow(row *[]string) {
+	parPtr := resolveParent(row)
+	stuPtr := resolveStudent(row)
+	stuPtr.parents = append(stuPtr.parents, parPtr)
+	logRow(row, stuPtr)
+}
+
 func makeRoomMap(inputFileName *string) roomMap {
 	dir := "./"
 	file, err := os.Open(dir + *inputFileName)
@@ -103,7 +136,7 @@ func makeRoomMap(inputFileName *string) roomMap {
 			continue
 		}
 
-		parentRow, errParent := makeParentRow(row)
+		parentRow, errParent := makeParentRow(&row)
 		if errParent == nil {
 			// only add parentRows which have email addresses
 			// key is "grade-room"; this accounts for combo rooms,
@@ -114,9 +147,8 @@ func makeRoomMap(inputFileName *string) roomMap {
 			rooms.Add(gradeRoomKey, parentRow)
 			processedRecordsCount++
 		} else {
-			discardRow(errParent, row)
+			discardRow(errParent, &row)
 		}
-		logRow(row, parentRow)
 		csvRecordsCount++
 	}
 
@@ -163,28 +195,28 @@ func writeRoomCSVFiles(rooms roomMap, outputDir string) {
 	}
 }
 
-func logRow(row []string, parentRow []string) {
+func logRow(row *[]string, stud *student) {
 
 	log.WithFields(log.Fields{
-		"count": len(row),
+		"count": len(*row),
 	}).Debug("# columns")
 
 	log.WithFields(log.Fields{
-		"row": row,
-	}).Debug("RAW ROW")
+		"row": *row,
+	}).Debug("RAW ROW:")
 
 	i := 0
-	rowFields := make(log.Fields, len(row))
-	for value := range row {
+	rowFields := make(log.Fields, len(*row))
+	for value := range *row {
 		// this simply makes a field label with 2-digit, 0-padded name
-		rowFields["f"+fmt.Sprintf("%02d", i)] = row[value]
+		rowFields["f"+fmt.Sprintf("%02d", i)] = (*row)[value]
 		i++
 	}
-	log.WithFields(rowFields).Debug("Row fields")
+	log.WithFields(rowFields).Debug("Row fields:")
 
 	log.WithFields(log.Fields{
-		"parentRow": parentRow,
-	}).Debug("PARENT ROW")
+		"student": *stud,
+	}).Debug("STUDENT + PARENTS:")
 }
 
 func logFin() {
@@ -203,7 +235,7 @@ func check(e error) {
 	}
 }
 
-func discardRow(err error, row []string) {
+func discardRow(err error, row *[]string) {
 	if rie, ok := err.(*recordImportError); ok {
 		if rie.cause == noEmail {
 			noEmailCount++
@@ -214,11 +246,7 @@ func discardRow(err error, row []string) {
 	}
 }
 
-func makeParentRow(row []string) ([]string, error) {
-
-	par := resolveParent(row)
-	stuPtr := resolveStudent(row)
-	stuPtr.parents = append(stuPtr.parents, par)
+func makeParentRow(row *[]string) ([]string, error) {
 
 	parent := resolveParentName(row)
 	student := resolveStudentName(row)
@@ -228,9 +256,9 @@ func makeParentRow(row []string) ([]string, error) {
 		return nil, emailErr
 	}
 
-	room := row[rowFieldIndices.room]
+	room := (*row)[rowFieldIndices.room]
 	// grade == 0 is Kindergarten; re-assign where appropriate
-	grade := row[rowFieldIndices.grade]
+	grade := (*row)[rowFieldIndices.grade]
 	if grade == "0" {
 		grade = "K"
 	}

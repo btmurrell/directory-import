@@ -5,12 +5,12 @@ import (
 	s "strings"
 )
 
-func resolveEmail(row []string) (string, error) {
+func resolveEmail(row *[]string) (string, error) {
 	// if no email, check for alternate
-	email := row[rowFieldIndices.parentEmail]
+	email := (*row)[rowFieldIndices.parentEmail]
 	if len(email) == 0 {
-		if len(row[rowFieldIndices.parentEmailAlt]) > 1 {
-			email = row[rowFieldIndices.parentEmailAlt]
+		if len((*row)[rowFieldIndices.parentEmailAlt]) > 1 {
+			email = (*row)[rowFieldIndices.parentEmailAlt]
 			log.WithFields(log.Fields{
 				"altEmail": email,
 				"row":      row,
@@ -23,18 +23,18 @@ func resolveEmail(row []string) (string, error) {
 	return email, nil
 }
 
-func resolveParent(row []string) parent {
+func resolveParent(row *[]string) *parent {
 	pName := resolveParentName(row)
 	email, err := resolveEmail(row)
-	par := parent{
+	par := &parent{
 		name: pName,
 		address: address{
-			row[rowFieldIndices.streetAddress],
-			row[rowFieldIndices.city],
-			row[rowFieldIndices.zip],
+			(*row)[rowFieldIndices.streetAddress],
+			(*row)[rowFieldIndices.city],
+			(*row)[rowFieldIndices.zip],
 		},
-		primaryPhone: row[rowFieldIndices.primaryPhone],
-		parentType:   row[rowFieldIndices.parentType],
+		primaryPhone: (*row)[rowFieldIndices.primaryPhone],
+		parentType:   (*row)[rowFieldIndices.parentType],
 	}
 	if err != nil {
 		if rie, ok := err.(*recordImportError); ok {
@@ -47,13 +47,13 @@ func resolveParent(row []string) parent {
 	return par
 }
 
-func resolveParentName(row []string) name {
+func resolveParentName(row *[]string) name {
 	// parentName:
 	// This implementation is based on value containing one string of "Firstname Lastname"
 	// this splits on the space, takes first part as parentFName and all the rest as parentLName
 	// * in case the value has no space, parentFName gets it all, parentLName is blank
 	// * in case the value multiple spaces, only the first word goes into parentFName, rest to parentLName
-	parentName := row[rowFieldIndices.parentName]
+	parentName := (*row)[rowFieldIndices.parentName]
 	student := resolveStudentName(row)
 	var parentFName string
 	var parentLName string
@@ -88,25 +88,25 @@ func resolveParentName(row []string) name {
 	return name{parentFName, parentLName}
 }
 
-func resolveStudentName(row []string) name {
+func resolveStudentName(row *[]string) name {
 	// stuName
 	// This implementation is based on value containing one string "Lastname, Firstname"
 	// this splits on ",", breaking out the single field into stuFName and stuLName fields
-	stuName := s.Split(row[rowFieldIndices.studentName], ",")
+	stuName := s.Split((*row)[rowFieldIndices.studentName], ",")
 	stuFName := s.TrimSpace(stuName[1])
 	stuLName := s.TrimSpace(stuName[0])
 	return name{stuFName, stuLName}
 }
 
-func resolveStudent(row []string) *student {
+func resolveStudent(row *[]string) *student {
 	stuName := resolveStudentName(row)
 	studentCandidate := &student{
 		name:    stuName,
-		teacher: row[rowFieldIndices.teacher],
-		room:    row[rowFieldIndices.room],
-		grade:   row[rowFieldIndices.grade],
+		teacher: (*row)[rowFieldIndices.teacher],
+		room:    (*row)[rowFieldIndices.room],
+		grade:   (*row)[rowFieldIndices.grade],
 	}
-	studentCandidate.parents = make([]parent, 0, 2)
+	studentCandidate.parents = make([]*parent, 0, 2)
 
 	key := studentCandidate.Key()
 	_, ok := students[key]

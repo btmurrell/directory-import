@@ -72,7 +72,7 @@ type student struct {
 	teacher string
 	room    string
 	grade   string
-	parents []parent
+	parents []*parent
 }
 
 func (stu *student) String() string {
