@@ -15,7 +15,7 @@ const (
 var (
 	currentColumn int
 	pdf *gofpdf.Fpdf
-	y0 float64
+	yPosition float64
 )
 func makePdf() {
 	studentList = make([]*student, len(studentMap))
@@ -31,7 +31,7 @@ func makePdf() {
 	pdf.SetAcceptPageBreakFunc(func() bool {
 		if currentColumn < numColumns-1 {
 			setCol(currentColumn + 1)
-			pdf.SetY(y0)
+			pdf.SetY(yPosition)
 			// Start new column, not new page
 			return false
 		}
@@ -45,19 +45,28 @@ func makePdf() {
 		pdf.CellFormat(0, 10, fmt.Sprintf("Page %d/{nb}", pdf.PageNo()),
 			"", 0, "C", false, 0, "")
 	})
+
+	pdf.SetHeaderFunc(func() {
+		// Save ordinate
+		yPosition = pdf.GetY()
+	})
+
 	pdf.SetMargins(margin, margin, margin)
 	pdf.AddPage()
 	letterHeader := ""
-	for _, student := range studentList {
+	for ccc, student := range studentList {
 		firstLetter := student.name.last[0:1]
+		if ccc == 0 {
+			fmt.Printf("FIRST ROW FIRST LETTER: %s, LETTERHEADER: %s\n", firstLetter, letterHeader)
+		}
 		if letterHeader != firstLetter {
 			letterHeader = firstLetter
+			fmt.Printf("EVERY FIRST LETTER: %s, LETTERHEADER: %s\n", firstLetter, letterHeader)
 			pdf.SetTextColor(255,255,255)
-			pdf.CellFormat(colWidth, 5, letterHeader, "1", 1, "CM", true, 0, "")
+			pdf.CellFormat(colWidth, 5, letterHeader+"x", "1", 1, "CM", true, 0, "")
 		}
 		pdf.SetTextColor(0,0,0)
 		pdf.SetFont("Arial", "B", 12)
-		//pdf.SetX(0)
 		pdf.CellFormat(colWidth, 5, student.name.last + ", "+student.name.first, "1", 1, "LM", false, 0, "")
 		for _, parent := range student.parents {
 			pdf.SetFont("Arial", "", 10)
