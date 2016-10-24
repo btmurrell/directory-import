@@ -5,19 +5,21 @@ import (
 	"encoding/csv"
 	"flag"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"io"
 	"os"
 	s "strings"
-
-	log "github.com/Sirupsen/logrus"
 )
 
-var rowFieldIndices = new(fieldIndices)
-var noEmailCount = 0
-var csvFileIndex = 0
-var recordsForImportCount = 0
-var outputDir = "csv-output"
-var students = make(map[string]*student)
+var (
+	rowFieldIndices       = new(fieldIndices)
+	noEmailCount          = 0
+	csvFileIndex          = 0
+	recordsForImportCount = 0
+	outputDir             = "csv-output"
+	studentMap            = make(map[string]*student)
+	studentList           []*student
+)
 
 func main() {
 
@@ -44,14 +46,16 @@ func main() {
 	rooms := makeRoomMap()
 	writeRoomCSVFiles(rooms)
 
+	makePdf(rooms)
+
 	logFin()
 
-	fmt.Printf("\nFinished successfully processing %v out of %v rows for CSV import.\n", recordsForImportCount, (csvFileIndex-1))
+	fmt.Printf("\nFinished successfully processing %v out of %v rows for CSV import.\n", recordsForImportCount, (csvFileIndex - 1))
 	fmt.Printf("(%d rows did not have e-mail addresses.)\n\n", noEmailCount)
 	fmt.Println("Your file has been converted to multiple CSV files for import into my-pta.")
 	fmt.Printf("You will find all of the files in a folder named '%v' in this current folder.\n\n", outputDir)
 
-	fmt.Printf("Total number of students: %d\n", len(students))
+	fmt.Printf("Total number of students: %d\n", len(studentMap))
 }
 
 func setup(logLevel string) {
@@ -102,10 +106,9 @@ func processRow(row *[]string) {
 	logRow(row, stuPtr)
 }
 
-
 func makeRoomMap() *roomMap {
 	rooms := make(roomMap)
-	for _, student := range students {
+	for _, student := range studentMap {
 		key := student.gradeVal() + "-" + student.room
 		for _, parent := range student.parents {
 			if parent.hasEmailError() {
@@ -173,8 +176,8 @@ func logRow(row *[]string, stud *student) {
 }
 
 func logFin() {
-	if (log.GetLevel() == log.DebugLevel) {
-		for k, stu := range students {
+	if log.GetLevel() == log.DebugLevel {
+		for k, stu := range studentMap {
 			fmt.Printf("STUDENT: %s-> %s\n", k, stu)
 			fmt.Printf("\t parent len: %d\n", len(stu.parents))
 			for _, par := range stu.parents {
@@ -183,7 +186,7 @@ func logFin() {
 		}
 	}
 	log.WithFields(log.Fields{
-		"csvRecords": csvFileIndex,
+		"csvRecords":                csvFileIndex,
 		"processedRecordsForImport": recordsForImportCount,
 	}).Infof("Finished successfully processing %v out of %v rows.\n", recordsForImportCount, csvFileIndex)
 	log.WithFields(log.Fields{
@@ -199,7 +202,7 @@ func check(e error) {
 
 func discardParentFromImport(par *parent, stu *student) {
 	log.WithFields(log.Fields{
-		"parent": (*par).String(),
+		"parent":  (*par).String(),
 		"student": (*stu).String(),
 	}).Errorf("DISCARDING PARENT FROM CSV IMPORT; NO EMAIL ADDRESS")
 	noEmailCount++
