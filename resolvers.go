@@ -109,9 +109,9 @@ func resolveStudent(row *[]string) *student {
 	studentCandidate.parents = make([]*parent, 0, 2)
 
 	key := studentCandidate.key()
-	_, ok := students[key]
+	_, ok := studentMap[key]
 	if !ok {
-		students[key] = studentCandidate
+		studentMap[key] = studentCandidate
 	}
-	return students[key]
+	return studentMap[key]
 }

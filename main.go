@@ -46,7 +46,7 @@ func main() {
 	rooms := makeRoomMap()
 	writeRoomCSVFiles(rooms)
 
-	makePdf(rooms)
+	makePdf()
 
 	logFin()
 

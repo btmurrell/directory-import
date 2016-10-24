@@ -63,6 +63,7 @@ type name struct {
 	first string
 	last  string
 }
+
 func (n *name) String() string {
 	return n.last + ", " + n.first
 }
@@ -97,6 +98,14 @@ func (stu *student) gradeVal() string {
 		return "K"
 	}
 	return stu.grade
+}
+type studentsByName []*student
+func (s studentsByName) Len() int { return len(s) }
+func (s studentsByName) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s studentsByName) Less(i, j int) bool {
+	iName := s[i].name.last + s[i].name.first
+	jName := s[j].name.last + s[j].name.first
+	return iName < jName
 }
 
 type address struct {
@@ -134,7 +143,7 @@ func (par *parent) String() string {
 	}
 	return resp
 }
-func (par *parent) hasEmailError() bool  {
+func (par *parent) hasEmailError() bool {
 	hasError := false
 	if len(par.meta) > 0 {
 		for _, err := range par.meta {
