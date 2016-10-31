@@ -16,8 +16,9 @@ var (
 	noEmailCount          = 0
 	csvFileIndex          = 0
 	recordsForImportCount = 0
-	outputDir             = "csv-output"
+	outputDir             = "csv-output-a"
 	studentMap            = make(map[string]*student)
+	parentMap							= make(map[string]*parent)
 	studentList           []*student
 )
 
@@ -103,6 +104,7 @@ func processRow(row *[]string) {
 	parPtr := resolveParent(row)
 	stuPtr := resolveStudent(row)
 	stuPtr.parents = append(stuPtr.parents, parPtr)
+	//parPtr.students = append(parPtr.students, stuPtr)
 	logRow(row, stuPtr)
 }
 

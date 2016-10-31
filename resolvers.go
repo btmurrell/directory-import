@@ -26,7 +26,7 @@ func resolveEmail(row *[]string) (string, error) {
 func resolveParent(row *[]string) *parent {
 	pName := resolveParentName(row)
 	email, err := resolveEmail(row)
-	par := &parent{
+	parentCandidate := &parent{
 		name: pName,
 		address: address{
 			(*row)[rowFieldIndices.streetAddress],
@@ -38,13 +38,19 @@ func resolveParent(row *[]string) *parent {
 	}
 	if err != nil {
 		if rie, ok := err.(*recordImportError); ok {
-			par.meta = make([]*recordImportError, 0)
-			par.meta = append(par.meta, rie)
+			parentCandidate.meta = make([]*recordImportError, 0)
+			parentCandidate.meta = append(parentCandidate.meta, rie)
 		}
 	} else {
-		par.email = email
+		parentCandidate.email = email
 	}
-	return par
+	key := parentCandidate.key()
+	_, ok := parentMap[key]
+	if !ok {
+		parentCandidate.students = make([]*student, 0, 2)
+		parentMap[key] = parentCandidate
+	}
+	return parentMap[key]
 }
 
 func resolveParentName(row *[]string) name {
@@ -106,11 +112,11 @@ func resolveStudent(row *[]string) *student {
 		room:    (*row)[rowFieldIndices.room],
 		grade:   (*row)[rowFieldIndices.grade],
 	}
-	studentCandidate.parents = make([]*parent, 0, 2)
 
 	key := studentCandidate.key()
 	_, ok := studentMap[key]
 	if !ok {
+		studentCandidate.parents = make([]*parent, 0, 2)
 		studentMap[key] = studentCandidate
 	}
 	return studentMap[key]

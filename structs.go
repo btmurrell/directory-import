@@ -87,8 +87,11 @@ func (stu *student) String() string {
 	resp += "]"
 	return resp
 }
-func (stu student) key() string {
-	data := []byte(stu.String())
+func (stu *student) uniqueAttributes() string {
+	return stu.name.String() + stu.room + stu.grade + stu.teacher
+}
+func (stu *student) key() string {
+	data := []byte(stu.uniqueAttributes())
 	sum := md5.Sum(data)
 	key := hex.EncodeToString(sum[:md5.Size])
 	return key
@@ -130,6 +133,14 @@ type parent struct {
 
 func (par *parent) String() string {
 	resp := par.parentType + ": " + par.name.String() + ", " + par.address.String() + ", " + par.email + ", " + par.primaryPhone
+	//+ ", students: ["
+	//for i, stu := range par.students {
+	//	if i > 0 {
+	//		resp += ", "
+	//	}
+	//	resp += (*stu).String()
+	//}
+	//resp += "]"
 	if len(par.meta) > 0 {
 		resp += ", meta: ["
 		for i, err := range par.meta {
@@ -142,6 +153,15 @@ func (par *parent) String() string {
 		resp += "]"
 	}
 	return resp
+}
+func (par *parent) uniqueAttributes() string {
+	return par.name.String() + par.email
+}
+func (par *parent) key() string {
+	data := []byte(par.uniqueAttributes())
+	sum := md5.Sum(data)
+	key := hex.EncodeToString(sum[:md5.Size])
+	return key
 }
 func (par *parent) hasEmailError() bool {
 	hasError := false
