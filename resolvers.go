@@ -1,8 +1,9 @@
 package main
 
 import (
-	log "github.com/Sirupsen/logrus"
 	s "strings"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 func resolveEmail(row *[]string) (string, error) {
@@ -25,7 +26,7 @@ func resolveEmail(row *[]string) (string, error) {
 
 func resolveParent(row *[]string) *parent {
 	pName := resolveParentName(row)
-	email, err := resolveEmail(row)
+	email, emailErr := resolveEmail(row)
 	parentCandidate := &parent{
 		name: pName,
 		address: address{
@@ -36,8 +37,8 @@ func resolveParent(row *[]string) *parent {
 		primaryPhone: (*row)[rowFieldIndices.primaryPhone],
 		parentType:   (*row)[rowFieldIndices.parentType],
 	}
-	if err != nil {
-		if rie, ok := err.(*recordImportError); ok {
+	if emailErr != nil {
+		if rie, ok := emailErr.(*recordImportError); ok {
 			parentCandidate.meta = make([]*recordImportError, 0)
 			parentCandidate.meta = append(parentCandidate.meta, rie)
 		}
@@ -47,7 +48,7 @@ func resolveParent(row *[]string) *parent {
 	key := parentCandidate.key()
 	_, ok := parentMap[key]
 	if !ok {
-		parentCandidate.students = make([]*student, 0, 2)
+		parentCandidate.studentKeys = make([]string, 0, 2)
 		parentMap[key] = parentCandidate
 	}
 	return parentMap[key]

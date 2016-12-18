@@ -5,10 +5,11 @@ import (
 	"encoding/csv"
 	"flag"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
 	"io"
 	"os"
 	s "strings"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 var (
@@ -18,7 +19,7 @@ var (
 	recordsForImportCount = 0
 	outputDir             = "csv-output-a"
 	studentMap            = make(map[string]*student)
-	parentMap							= make(map[string]*parent)
+	parentMap             = make(map[string]*parent)
 	studentList           []*student
 )
 
@@ -104,7 +105,7 @@ func processRow(row *[]string) {
 	parPtr := resolveParent(row)
 	stuPtr := resolveStudent(row)
 	stuPtr.parents = append(stuPtr.parents, parPtr)
-	//parPtr.students = append(parPtr.students, stuPtr)
+	parPtr.studentKeys = append(parPtr.studentKeys, stuPtr.key())
 	logRow(row, stuPtr)
 }
 

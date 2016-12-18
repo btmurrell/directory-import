@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+
 	log "github.com/Sirupsen/logrus"
 )
 
@@ -102,8 +103,10 @@ func (stu *student) gradeVal() string {
 	}
 	return stu.grade
 }
+
 type studentsByName []*student
-func (s studentsByName) Len() int { return len(s) }
+
+func (s studentsByName) Len() int      { return len(s) }
 func (s studentsByName) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 func (s studentsByName) Less(i, j int) bool {
 	iName := s[i].name.last + s[i].name.first
@@ -126,7 +129,7 @@ type parent struct {
 	address      address
 	primaryPhone string
 	parentType   string
-	students     []*student
+	studentKeys  []string
 	email        string
 	meta         []*recordImportError
 }
@@ -174,4 +177,14 @@ func (par *parent) hasEmailError() bool {
 		}
 	}
 	return hasError
+}
+
+type parentsByName []*parent
+
+func (p parentsByName) Len() int      { return len(p) }
+func (p parentsByName) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p parentsByName) Less(i, j int) bool {
+	iName := p[i].name.last + p[i].name.first
+	jName := p[j].name.last + p[j].name.first
+	return iName < jName
 }
