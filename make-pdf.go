@@ -30,6 +30,14 @@ func makePdf() {
 	}
 	sort.Sort(studentsByName(studentList))
 
+	familyList := make([]*family, len(*families))
+	f := 0
+	for _, fam := range *families {
+		familyList[f] = fam
+		f++
+	}
+	sort.Sort(familiesByName(familyList))
+
 	pdf = gofpdf.New("P", "mm", "Letter", "")
 
 	pdf.SetAcceptPageBreakFunc(func() bool {
@@ -58,6 +66,9 @@ func makePdf() {
 	pdf.SetMargins(margin, margin, margin)
 	pdf.AddPage()
 	letterHeader := ""
+	// for ff, family := range familyList {
+
+	// }
 	for ccc, student := range studentList {
 		firstLetter := student.name.last[0:1]
 		if ccc == 0 {

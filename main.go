@@ -20,6 +20,7 @@ var (
 	outputDir             = "csv-output-a"
 	studentMap            = make(map[string]*student)
 	parentMap             = make(map[string]*parent)
+	families              *familyMap
 	studentList           []*student
 )
 
@@ -45,7 +46,7 @@ func main() {
 	}
 
 	ingestFile(&inputFileName)
-	families := makeFamilyMap()
+	families = makeFamilyMap()
 	rooms := makeRoomMap()
 	writeRoomCSVFiles(rooms)
 
@@ -142,6 +143,7 @@ func makeFamilyMap() *familyMap {
 			fam := &family{
 				studentMap: make(map[string]*student),
 				parentMap:  make(map[string]*parent),
+				lastName:   _student.name.last,
 			}
 			families[familyKey] = fam
 		}

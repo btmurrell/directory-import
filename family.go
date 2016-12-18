@@ -3,6 +3,7 @@ package main
 type family struct {
 	studentMap map[string]*student
 	parentMap  map[string]*parent
+	lastName   string
 }
 
 func (f *family) String() string {
@@ -20,3 +21,10 @@ func (f *family) String() string {
 
 type familyMap map[string]*family
 
+type familiesByName []*family
+
+func (f familiesByName) Len() int      { return len(f) }
+func (f familiesByName) Swap(i, j int) { f[i], f[j] = f[j], f[i] }
+func (f familiesByName) Less(i, j int) bool {
+	return f[i].lastName < f[j].lastName
+}
