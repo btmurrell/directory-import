@@ -45,7 +45,7 @@ func main() {
 	}
 
 	ingestFile(&inputFileName)
-	makeFamilyMap()
+	families := makeFamilyMap()
 	rooms := makeRoomMap()
 	writeRoomCSVFiles(rooms)
 
@@ -59,6 +59,7 @@ func main() {
 	fmt.Printf("You will find all of the files in a folder named '%v' in this current folder.\n\n", outputDir)
 
 	fmt.Printf("Total number of students: %d\n", len(studentMap))
+	fmt.Printf("Total number of families: %d\n", len(*families))
 }
 
 func setup(logLevel string) {
