@@ -60,6 +60,12 @@ func (r roomMap) peek(key string) ([][]string, bool) {
 	return r[key], true
 }
 
+type family struct {
+	studentMap map[string]*student
+	parentMap  map[string]*parent
+}
+type familyMap map[string]*family
+
 type name struct {
 	first string
 	last  string

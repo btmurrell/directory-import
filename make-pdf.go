@@ -3,20 +3,24 @@ package main
 import (
 	"fmt"
 	"sort"
+
 	"github.com/jung-kurt/gofpdf"
 )
+
 const (
-	pageWidth = 215.9 // letter 8.5 in == 215.9 mm
+	pageWidth  = 215.9 // letter 8.5 in == 215.9 mm
 	numColumns = 3
-	margin = 10
-	gutter = 4
-	colWidth = (pageWidth - 2*margin - (numColumns-1)*gutter) / numColumns
+	margin     = 10
+	gutter     = 4
+	colWidth   = (pageWidth - 2*margin - (numColumns-1)*gutter) / numColumns
 )
+
 var (
 	currentColumn int
-	pdf *gofpdf.Fpdf
-	yPosition float64
+	pdf           *gofpdf.Fpdf
+	yPosition     float64
 )
+
 func makePdf() {
 	studentList = make([]*student, len(studentMap))
 	ii := 0
@@ -62,15 +66,15 @@ func makePdf() {
 		if letterHeader != firstLetter {
 			letterHeader = firstLetter
 			fmt.Printf("EVERY FIRST LETTER: %s, LETTERHEADER: %s\n", firstLetter, letterHeader)
-			pdf.SetTextColor(255,255,255)
+			pdf.SetTextColor(255, 255, 255)
 			pdf.CellFormat(colWidth, 5, letterHeader+"x", "1", 1, "CM", true, 0, "")
 		}
-		pdf.SetTextColor(0,0,0)
+		pdf.SetTextColor(0, 0, 0)
 		pdf.SetFont("Arial", "B", 12)
-		pdf.CellFormat(colWidth, 5, student.name.last + ", "+student.name.first, "1", 1, "LM", false, 0, "")
+		pdf.CellFormat(colWidth, 5, student.name.last+", "+student.name.first, "1", 1, "LM", false, 0, "")
 		for _, parent := range student.parents {
 			pdf.SetFont("Arial", "", 10)
-			parentTxt := fmt.Sprintf("%s: %s, %s", parent.parentType , parent.name.last, parent.name.first)
+			parentTxt := fmt.Sprintf("%s: %s, %s", parent.parentType, parent.name.last, parent.name.first)
 			pdf.SetCellMargin(5)
 			pdf.CellFormat(colWidth, 5, parentTxt, "1", 1, "LM", false, 0, "")
 		}

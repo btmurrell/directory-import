@@ -45,6 +45,7 @@ func main() {
 	}
 
 	ingestFile(&inputFileName)
+	makeFamilyMap()
 	rooms := makeRoomMap()
 	writeRoomCSVFiles(rooms)
 
@@ -123,6 +124,35 @@ func makeRoomMap() *roomMap {
 		}
 	}
 	return &rooms
+}
+
+func makeFamilyMap() *familyMap {
+	families := make(familyMap)
+	for _, _student := range studentMap {
+		familyKey := ""
+		for _, _parent := range _student.parents {
+			familyKey = familyKey + _parent.key() + "-"
+		}
+		log.WithFields(log.Fields{
+			"familyKey": familyKey,
+		}).Debug("FAMILY KEY")
+		_, ok := families[familyKey]
+		if !ok {
+			fam := &family{
+				studentMap: make(map[string]*student),
+				parentMap:  make(map[string]*parent),
+			}
+			families[familyKey] = fam
+		}
+		families[familyKey].studentMap[_student.key()] = _student
+		for _, _parent := range _student.parents {
+			families[familyKey].parentMap[_parent.key()] = _parent
+		}
+		log.WithFields(log.Fields{
+			"family": families[familyKey],
+		}).Debug("FAMILY")
+	}
+	return &families
 }
 
 func writeRoomCSVFiles(rooms *roomMap) {
