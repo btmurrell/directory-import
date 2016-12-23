@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	s "strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -61,7 +62,7 @@ func resolveParentName(row *[]string) name {
 	// * in case the value has no space, parentFName gets it all, parentLName is blank
 	// * in case the value multiple spaces, only the first word goes into parentFName, rest to parentLName
 	parentName := (*row)[rowFieldIndices.parentName]
-	student := resolveStudentName(row)
+	student, _ := resolveStudentName(row)
 	var parentFName string
 	var parentLName string
 	if len(parentName) > 0 {
@@ -95,18 +96,24 @@ func resolveParentName(row *[]string) name {
 	return name{parentFName, parentLName}
 }
 
-func resolveStudentName(row *[]string) name {
+func resolveStudentName(row *[]string) (name, error) {
 	// stuName
 	// This implementation is based on value containing one string "Lastname, Firstname"
 	// this splits on ",", breaking out the single field into stuFName and stuLName fields
-	stuName := s.Split((*row)[rowFieldIndices.studentName], ",")
+	var nameResp name
+	nameField := (*row)[rowFieldIndices.studentName]
+	if s.Index(nameField, ",") == -1 {
+		return nameResp, errors.New("no comma found in student name field")
+	}
+	stuName := s.Split(nameField, ",")
 	stuFName := s.TrimSpace(stuName[1])
 	stuLName := s.TrimSpace(stuName[0])
-	return name{stuFName, stuLName}
+	nameResp = name{stuFName, stuLName}
+	return nameResp, nil
 }
 
 func resolveStudent(row *[]string) *student {
-	stuName := resolveStudentName(row)
+	stuName, _ := resolveStudentName(row)
 	studentCandidate := &student{
 		name:    stuName,
 		teacher: (*row)[rowFieldIndices.teacher],
