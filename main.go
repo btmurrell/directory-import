@@ -5,10 +5,11 @@ import (
 	"encoding/csv"
 	"flag"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
 	"io"
 	"os"
 	s "strings"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 var (
@@ -19,18 +20,24 @@ var (
 	outputDir             = "csv-output"
 	studentMap            = make(map[string]*student)
 	studentList           []*student
+	srcVersion            = "2017.10.01"
 )
 
 func main() {
 
-	logLevel := flag.String("l", "f", "logging level valid values: p (panic), f (fatal), e (error), w (warn), i (info), d (debug)")
-	help := flag.Bool("h", false, "help: Show this message")
+	logLevel := flag.String("l", "f", "Logging level: valid values: p (panic), f (fatal), e (error), w (warn), i (info), d (debug)")
+	help := flag.Bool("h", false, "Help: Show this message")
+	version := flag.Bool("v", false, "Version: Show the version of this program")
 	flag.Parse()
 
 	if *help {
 		usage(0)
 	}
 
+	if *version {
+		fmt.Fprintln(os.Stdout, "\n\tVersion", srcVersion)
+		os.Exit(0)
+	}
 	setup(*logLevel)
 
 	var inputFileName string
@@ -65,15 +72,15 @@ func setup(logLevel string) {
 	rowFieldIndices.studentName = 0
 	rowFieldIndices.teacher = 1
 	rowFieldIndices.room = 2
-	rowFieldIndices.primaryPhone = 3
-	rowFieldIndices.streetAddress = 4
-	rowFieldIndices.city = 5
-	rowFieldIndices.zip = 6
-	rowFieldIndices.grade = 7
-	rowFieldIndices.parentType = 9
-	rowFieldIndices.parentName = 10
-	rowFieldIndices.parentEmail = 14
-	rowFieldIndices.parentEmailAlt = 15
+	rowFieldIndices.primaryPhone = 4
+	rowFieldIndices.streetAddress = 5
+	rowFieldIndices.city = 6
+	rowFieldIndices.zip = 7
+	rowFieldIndices.grade = 8
+	rowFieldIndices.parentType = 11
+	rowFieldIndices.parentName = 12
+	rowFieldIndices.parentEmail = 16
+	rowFieldIndices.parentEmailAlt = 10
 
 }
 
@@ -126,7 +133,6 @@ func writeRoomCSVFiles(rooms *roomMap) {
 	os.Mkdir(outputDir, 0755)
 	header := []string{"FirstName", "LastName", "email", "room", "grade", "StuFn", "StuLn"}
 	for gradeRoom, parents := range *rooms {
-
 		gradeRoomSplitIdx := s.Index(gradeRoom, "-")
 		// key is grade-room, split these out
 		grade := gradeRoom[0:gradeRoomSplitIdx]
@@ -218,7 +224,7 @@ func msgFromImportError(err error) (int, string) {
 func usage(exitCode int) {
 	fmt.Fprintf(os.Stderr, "\nUsage of %s:\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "\n\t%s filename.csv", os.Args[0])
-	fmt.Fprintln(os.Stderr, "\nwhere filename.csv is the input file")
+	fmt.Fprintln(os.Stderr, "\n\nwhere filename.csv is the input file")
 	fmt.Fprintln(os.Stderr, "\noptionally, you may specify these flags")
 	fmt.Println("")
 	flag.PrintDefaults()

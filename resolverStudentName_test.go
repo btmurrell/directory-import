@@ -10,7 +10,7 @@ func TestSuccessfulResolveStudentName(t *testing.T) {
 	setup("f")
 
 	expectedName := name{first: "Abigail", last: "Butler"}
-	actualName := resolveStudentName(row)
+	actualName := resolveStudentName(&row)
 
 	if actualName.first != expectedName.first {
 		t.Errorf("Expected first name of '%s', but was '%s'", expectedName.first, actualName.first)

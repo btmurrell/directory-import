@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+
 	log "github.com/Sirupsen/logrus"
 )
 
@@ -88,7 +89,7 @@ func (stu *student) String() string {
 	return resp
 }
 func (stu student) key() string {
-	data := []byte(stu.String())
+	data := []byte(stu.name.String() + stu.teacher + stu.room + stu.grade)
 	sum := md5.Sum(data)
 	key := hex.EncodeToString(sum[:md5.Size])
 	return key
@@ -99,8 +100,10 @@ func (stu *student) gradeVal() string {
 	}
 	return stu.grade
 }
+
 type studentsByName []*student
-func (s studentsByName) Len() int { return len(s) }
+
+func (s studentsByName) Len() int      { return len(s) }
 func (s studentsByName) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 func (s studentsByName) Less(i, j int) bool {
 	iName := s[i].name.last + s[i].name.first

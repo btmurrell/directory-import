@@ -1,8 +1,9 @@
 package main
 
 import (
-	log "github.com/Sirupsen/logrus"
 	s "strings"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 func resolveEmail(row *[]string) (string, error) {
@@ -25,7 +26,6 @@ func resolveEmail(row *[]string) (string, error) {
 
 func resolveParent(row *[]string) *parent {
 	pName := resolveParentName(row)
-	email, err := resolveEmail(row)
 	par := &parent{
 		name: pName,
 		address: address{
@@ -36,6 +36,7 @@ func resolveParent(row *[]string) *parent {
 		primaryPhone: (*row)[rowFieldIndices.primaryPhone],
 		parentType:   (*row)[rowFieldIndices.parentType],
 	}
+	email, err := resolveEmail(row)
 	if err != nil {
 		if rie, ok := err.(*recordImportError); ok {
 			par.meta = make([]*recordImportError, 0)
@@ -51,7 +52,7 @@ func resolveParentName(row *[]string) name {
 	// parentName:
 	// This implementation is based on value containing one string of "Firstname Lastname"
 	// this splits on the space, takes first part as parentFName and all the rest as parentLName
-	// * in case the value has no space, parentFName gets it all, parentLName is blank
+	// * in case the value has no space, parentFName gets it all, parentLName is marked, and student.last is used
 	// * in case the value multiple spaces, only the first word goes into parentFName, rest to parentLName
 	parentName := (*row)[rowFieldIndices.parentName]
 	student := resolveStudentName(row)
@@ -98,6 +99,8 @@ func resolveStudentName(row *[]string) name {
 	return name{stuFName, stuLName}
 }
 
+// resolves student AND puts student in studentMap which is used in all
+// downstream operations
 func resolveStudent(row *[]string) *student {
 	stuName := resolveStudentName(row)
 	studentCandidate := &student{
