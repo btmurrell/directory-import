@@ -3,7 +3,7 @@ package main
 import (
 	s "strings"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 func resolveEmail(row *[]string) (string, error) {

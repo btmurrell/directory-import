@@ -9,7 +9,7 @@ import (
 	"os"
 	s "strings"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 var (

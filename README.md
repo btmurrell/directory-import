@@ -27,6 +27,9 @@ To avoid that error, build with this `-ldflags`. ([attribution](https://github.c
 
 
 ## Notes on running
+
+A data file may be found in private repo [data.csv](https://github.com/btmurrell/data-repo/blob/master/directory-import/data.csv)
+
 Run it this way:
 ```
 directory-import filename.csv
